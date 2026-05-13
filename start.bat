@@ -22,6 +22,43 @@ for %%A in (%*) do (
 	if "%%A"=="--fresh" set FRESH_MODE=1
 )
 
+echo ========================================================
+echo [BOOTSTRAP] Verification et recuperation des sous-projets
+echo ========================================================
+
+echo [1/8] Clonage API IA (FastAPI)
+if not exist "API-IA\" (
+    echo [CLONAGE] Recuperation de API-IA...
+    git clone https://github.com/GroupMSPR/Health-IA-FastAPI.git API-IA
+) else (
+    echo [OK] Dossier API-IA deja present.
+)
+
+echo [2/8] Clonage ETL
+if not exist "ETL\" (
+    echo [CLONAGE] Recuperation de l'ETL...
+    git clone https://github.com/GroupMSPR/Health-IA-ETL.git ETL
+) else (
+    echo [OK] Dossier ETL deja present.
+)
+
+echo [3/8] Clonage Grafana
+if not exist "Grafana\" (
+    echo [CLONAGE] Recuperation de Grafana...
+    git clone https://github.com/GroupMSPR/Health-IA-Grafana.git Grafana
+) else (
+    echo [OK] Dossier Grafana deja present.
+)
+
+echo [4/8] Clonage Backend (HealthAI-Coach)
+if not exist "HealthAI-Coach\" (
+    echo [CLONAGE] Recuperation du Backend Laravel...
+    git clone https://github.com/GroupMSPR/Health-IA-Backend.git HealthAI-Coach
+) else (
+    echo [OK] Dossier HealthAI-Coach deja present.
+)
+echo.
+
 :: PRECHECKS - Verifier que Docker et docker compose sont disponibles
 echo [PRECHECKS] Verification de l'environnement...
 docker --version >nul 2>&1
@@ -45,7 +82,7 @@ if errorlevel 1 (
 echo [OK] Docker et docker compose detectes.
 echo.
 
-echo [1/4] Lancement de l'API Laravel et de PostgreSQL...
+echo [5/8] Lancement de l'API Laravel et de PostgreSQL...
 pushd "HealthAI-Coach"
 docker compose up -d --force-recreate --wait
 if errorlevel 1 (
@@ -112,7 +149,7 @@ echo [OK] Cluster PostgreSQL repare.
 :migrate_db
 
 echo.
-echo [2/4] Migration de la base de donnees (creation des tables)...
+echo [6/8] Migration de la base de donnees (creation des tables)...
 
 if !FRESH_MODE! equ 1 (
 	echo [FRESH] Reset complet de la base de donnees...
@@ -147,8 +184,9 @@ echo [OK] Base de donnees ensemencee.
 
 echo.
 echo Correction des permissions storage/cache...
-docker compose exec -T laravel chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache >nul 2>&1
+docker compose exec -T laravel chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache >nul 2>&1
 docker compose exec -T laravel chown -R sail:sail /var/www/html/storage /var/www/html/bootstrap/cache >nul 2>&1
+docker compose exec -T laravel chmod -R 777 /var/www/html >nul 2>&1
 echo [OK] Permissions corrigees.
 
 echo.
@@ -168,7 +206,7 @@ echo [OK] Cache Filament optimise.
 popd
 
 echo.
-echo [3/4] Lancement de l'ETL (Python) et de Grafana...
+echo [7/8] Lancement de l'ETL (Python) et de Grafana...
 pushd "ETL"
 docker compose up -d --build
 if errorlevel 1 (
@@ -180,7 +218,7 @@ echo [OK] ETL et Grafana demarres.
 popd
 
 echo.
-echo [4/4] Lancement de l'API IA (FastAPI) et du Volume de sauvegarde...
+echo [8/8] Lancement de l'API IA (FastAPI) et du Volume de sauvegarde...
 pushd "API-IA"
 docker compose up -d --build
 if errorlevel 1 (
