@@ -84,6 +84,13 @@ echo.
 
 echo [5/8] Lancement de l'API Laravel et de PostgreSQL...
 pushd "HealthAI-Coach"
+if not exist ".env" (
+    echo [INIT] Creation automatique du fichier .env Laravel...
+    copy .env.example .env >nul
+)
+echo [INIT] Telechargement des dependances PHP (Composer)...
+echo Cela peut prendre quelques minutes la premiere fois.
+docker run --rm -v "%cd%:/app" composer install --ignore-platform-reqs
 docker compose up -d --force-recreate --wait
 if errorlevel 1 (
 	set ERROR_MESSAGE=Lancement du conteneur Laravel/PostgreSQL a echoue.
@@ -208,6 +215,12 @@ popd
 echo.
 echo [7/8] Lancement de l'ETL (Python) et de Grafana...
 pushd "ETL"
+if not exist ".env" (
+    if exist ".env.example" (
+        echo [INIT] Creation automatique du fichier .env ETL...
+        copy .env.example .env >nul
+    )
+)
 docker compose up -d --build
 if errorlevel 1 (
 	set ERROR_MESSAGE=Lancement des conteneurs ETL/Grafana a echoue.
@@ -220,6 +233,12 @@ popd
 echo.
 echo [8/8] Lancement de l'API IA (FastAPI) et du Volume de sauvegarde...
 pushd "API-IA"
+if not exist ".env" (
+    if exist ".env.example" (
+        echo [INIT] Creation automatique du fichier .env API IA...
+        copy .env.example .env >nul
+    )
+)
 docker compose up -d --build
 if errorlevel 1 (
 	set ERROR_MESSAGE=Lancement du conteneur API IA a echoue.
