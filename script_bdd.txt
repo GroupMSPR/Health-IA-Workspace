@@ -1,0 +1,87 @@
+CREATE TABLE users(
+   user_id SERIAL,
+   last_name VARCHAR(50) NOT NULL,
+   first_name VARCHAR(50) NOT NULL,
+   email VARCHAR(100) NOT NULL,
+   password VARCHAR(50) NOT NULL,
+   birthdate DATE NOT NULL,
+   gender VARCHAR(50) NOT NULL,
+   weight NUMERIC(15,2) NOT NULL,
+   height INTEGER NOT NULL,
+   bmi NUMERIC(15,2) NOT NULL,
+   body_fat_pct NUMERIC(15,2) NOT NULL,
+   constraints TEXT,
+   physical_activity_level VARCHAR(50) NOT NULL,
+   daily_caloric_intake INTEGER NOT NULL,
+   goal TEXT NOT NULL,
+   subscription VARCHAR(50) NOT NULL,
+   date_subscription DATE,
+   PRIMARY KEY(user_id),
+   UNIQUE(email)
+);
+
+CREATE TABLE foods(
+   food_id SERIAL,
+   name VARCHAR(100) NOT NULL,
+   category VARCHAR(50) NOT NULL,
+   calories NUMERIC(15,2) NOT NULL,
+   protein NUMERIC(15,2) NOT NULL,
+   carbohydrates NUMERIC(15,2) NOT NULL,
+   fat NUMERIC(15,2) NOT NULL,
+   fiber NUMERIC(15,2) NOT NULL,
+   sugars NUMERIC(15,2) NOT NULL,
+   sodium SMALLINT NOT NULL,
+   cholestorol SMALLINT NOT NULL,
+   PRIMARY KEY(food_id)
+);
+
+CREATE TABLE exercises(
+   exercise_id SERIAL,
+   name VARCHAR(50) NOT NULL,
+   type VARCHAR(50) NOT NULL,
+   target_muscle TEXT NOT NULL,
+   secondary_muscle TEXT NOT NULL,
+   equipment TEXT NOT NULL,
+   difficulty_level VARCHAR(50) NOT NULL,
+   instructions TEXT NOT NULL,
+   constraints TEXT,
+   PRIMARY KEY(exercise_id)
+);
+
+CREATE TABLE health_metrics(
+   health_metric_id SERIAL,
+   userid VARCHAR(50) NOT NULL,
+   date TIMESTAMP NOT NULL,
+   start_weight NUMERIC(15,2) NOT NULL,
+   current_weight NUMERIC(15,2) NOT NULL,
+   avg_bpm NUMERIC(15,2) NOT NULL,
+   max_bpm NUMERIC(15,2) NOT NULL,
+   resting_bpm NUMERIC(15,2) NOT NULL,
+   steps_count SMALLINT NOT NULL,
+   sleep_time TIME NOT NULL,
+   calories_burned NUMERIC(15,2) NOT NULL,
+   active_minute NUMERIC(15,2) NOT NULL,
+   workout_type VARCHAR(50) NOT NULL,
+   PRIMARY KEY(health_metric_id),
+   UNIQUE(user_id)
+);
+
+CREATE TABLE consume(
+   user_id INTEGER,
+   food_id INTEGER,
+   id_consume VARCHAR(50) NOT NULL,
+   PRIMARY KEY(user_id, food_id),
+   UNIQUE(id_consume),
+   FOREIGN KEY(userid) REFERENCES User(user_id),
+   FOREIGN KEY(food_id) REFERENCES Food(food_id)
+);
+
+CREATE TABLE practice(
+   user_id INTEGER,
+   exercise_id INTEGER,
+   id_practice VARCHAR(50) NOT NULL,
+   PRIMARY KEY(user_id, exercise_id),
+   UNIQUE(id_practice),
+   FOREIGN KEY(userid) REFERENCES User(user_id),
+   FOREIGN KEY(exercise_id) REFERENCES Exercise(exercise_id)
+);
