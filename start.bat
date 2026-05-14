@@ -201,13 +201,13 @@ docker compose exec -T laravel chmod -R 777 /var/www/html >nul 2>&1
 echo [OK] Permissions corrigees.
 
 echo.
-echo Generation Clé & Optimisation du cache Laravel (config, routes, vues)...
+echo Generation Key / Optimisation du cache Laravel (config, routes, vues)...
 docker compose exec -T laravel php artisan key:generate >nul 2>&1
 docker compose exec -T laravel php artisan optimize >nul 2>&1
 if errorlevel 1 (
 	echo [WARN] L'optimisation Laravel a echoue, le backend fonctionnera sans cache.
 ) else (
-	echo [OK] Cache Laravel optimise.
+	echo [OK] Key generee et cache Laravel optimise.
 )
 
 echo.
@@ -236,7 +236,7 @@ echo [OK] ETL et Grafana demarres.
 popd
 
 echo.
-echo [8/8] Lancement de l'API IA (FastAPI) et du Volume de sauvegarde...
+echo [8/8] Lancement de l'API IA (FastAPI), Models Ollama et des volumes...
 pushd "API-IA"
 if not exist ".env" (
     if exist ".env.example" (
@@ -265,6 +265,7 @@ echo - BackOffice Admin : http://localhost/admin
 echo - API Doc Swagger  : http://localhost/api/documentation
 echo - Grafana          : http://localhost:3000
 echo - API IA (FastAPI) : http://localhost:4000/docs
+echo - Ollama HC        : http://localhost:11434
 echo.
 echo Identifiants Grafana : admin / admin
 echo ========================================================
