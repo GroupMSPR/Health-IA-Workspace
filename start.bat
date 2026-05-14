@@ -87,7 +87,11 @@ pushd "HealthAI-Coach"
 if not exist ".env" (
     echo [INIT] Creation automatique du fichier .env Laravel...
     copy .env.example .env >nul
+
+	echo [INIT] Decommentation automatique des variables de base de donnees...
+    powershell -Command "(Get-Content .env) -replace '^# DB_', 'DB_' -replace '^# FORWARD_DB_PORT', 'FORWARD_DB_PORT' | Set-Content .env"
 )
+powershell -Command "(Get-Content .env) -replace '^# DB_', 'DB_' -replace '^# FORWARD_DB_PORT', 'FORWARD_DB_PORT' | Set-Content .env"
 echo [INIT] Telechargement des dependances PHP (Composer)...
 echo Cela peut prendre quelques minutes la premiere fois.
 docker run --rm -v "%cd%:/app" composer install --ignore-platform-reqs
