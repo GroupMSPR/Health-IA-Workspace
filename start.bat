@@ -201,7 +201,8 @@ docker compose exec -T laravel chmod -R 777 /var/www/html >nul 2>&1
 echo [OK] Permissions corrigees.
 
 echo.
-echo Optimisation du cache Laravel (config, routes, vues)...
+echo Generation Clé & Optimisation du cache Laravel (config, routes, vues)...
+docker compose exec -T laravel php artisan key:generate >nul 2>&1
 docker compose exec -T laravel php artisan optimize >nul 2>&1
 if errorlevel 1 (
 	echo [WARN] L'optimisation Laravel a echoue, le backend fonctionnera sans cache.
