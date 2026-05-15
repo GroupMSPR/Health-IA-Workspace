@@ -26,7 +26,7 @@ echo ========================================================
 echo [BOOTSTRAP] Verification et recuperation des sous-projets
 echo ========================================================
 
-echo [1/8] Clonage API IA (FastAPI)
+echo [1/9] Clonage API IA (FastAPI)
 if not exist "API-IA\" (
     echo [CLONAGE] Recuperation de API-IA...
     git clone https://github.com/GroupMSPR/Health-IA-FastAPI.git API-IA
@@ -34,7 +34,7 @@ if not exist "API-IA\" (
     echo [OK] Dossier API-IA deja present.
 )
 
-echo [2/8] Clonage ETL
+echo [2/9] Clonage ETL
 if not exist "ETL\" (
     echo [CLONAGE] Recuperation de l'ETL...
     git clone https://github.com/GroupMSPR/Health-IA-ETL.git ETL
@@ -42,7 +42,7 @@ if not exist "ETL\" (
     echo [OK] Dossier ETL deja present.
 )
 
-echo [3/8] Clonage Grafana
+echo [3/9] Clonage Grafana
 if not exist "Grafana\" (
     echo [CLONAGE] Recuperation de Grafana...
     git clone https://github.com/GroupMSPR/Health-IA-Grafana.git Grafana
@@ -50,7 +50,7 @@ if not exist "Grafana\" (
     echo [OK] Dossier Grafana deja present.
 )
 
-echo [4/8] Clonage Backend (HealthAI-Coach)
+echo [4/9] Clonage Backend (HealthAI-Coach)
 if not exist "HealthAI-Coach\" (
     echo [CLONAGE] Recuperation du Backend Laravel...
     git clone https://github.com/GroupMSPR/Health-IA-Backend.git HealthAI-Coach
@@ -82,7 +82,7 @@ if errorlevel 1 (
 echo [OK] Docker et docker compose detectes.
 echo.
 
-echo [5/8] Lancement de l'API Laravel et de PostgreSQL...
+echo [5/9] Lancement de l'API Laravel et de PostgreSQL...
 pushd "HealthAI-Coach"
 if not exist ".env" (
     echo [INIT] Creation automatique du fichier .env Laravel...
@@ -160,7 +160,7 @@ echo [OK] Cluster PostgreSQL repare.
 :migrate_db
 
 echo.
-echo [6/8] Migration de la base de donnees (creation des tables)...
+echo [6/9] Migration de la base de donnees (creation des tables)...
 
 if !FRESH_MODE! equ 1 (
 	echo [FRESH] Reset complet de la base de donnees...
@@ -218,7 +218,7 @@ echo [OK] Cache Filament optimise.
 popd
 
 echo.
-echo [7/8] Lancement de l'ETL (Python) et de Grafana...
+echo [7/9] Lancement de l'ETL (Python) et de Grafana...
 pushd "ETL"
 if not exist ".env" (
     if exist ".env.example" (
@@ -236,7 +236,7 @@ echo [OK] ETL et Grafana demarres.
 popd
 
 echo.
-echo [8/8] Lancement de l'API IA (FastAPI), Models Ollama et des volumes...
+echo [8/9] Lancement de l'API IA (FastAPI), Models Ollama et des volumes...
 pushd "API-IA"
 if not exist ".env" (
     if exist ".env.example" (
@@ -250,8 +250,30 @@ if errorlevel 1 (
 	popd
 	goto error_handler
 )
-echo [OK] API IA (FastAPI) demarree.
+echo [OK] API IA (FastAPI) et Ollama demarree.
 popd
+
+echo.
+echo ========================================================
+echo [9/9] [IA SETUP] Verification du modele LLaVA
+echo ========================================================
+:: On attend 5 secondes pour s'assurer qu'Ollama a bien fini de demarrer en interne
+timeout /t 5 /nobreak >nul
+
+docker compose exec -T ollama ollama list | findstr "llava" >nul 2>&1
+if errorlevel 1 (
+    echo [INIT] Le modele LLaVA n'est pas installe sur cette machine.
+    echo [INIT] Telechargement en cours... 
+    echo [ATTENTION] C'est un fichier de ~4.7 Go, cela depend de votre connexion internet, patience !
+    docker compose exec -T ollama ollama pull llava
+    if errorlevel 1 (
+        echo [WARN] Le telechargement de LLaVA a echoue. Vous devrez le faire manuellement plus tard.
+    ) else (
+        echo [OK] Modele LLaVA telecharge et installe avec succes !
+    )
+) else (
+    echo [OK] Le modele LLaVA est deja present et operationnel.
+)
 
 echo.
 echo ========================================================
