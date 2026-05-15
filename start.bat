@@ -92,10 +92,12 @@ if not exist ".env" (
     powershell -Command "(Get-Content .env) -replace '^# DB_', 'DB_' -replace '^# FORWARD_DB_PORT', 'FORWARD_DB_PORT' | Set-Content .env"
 )
 powershell -Command "(Get-Content .env) -replace '^# DB_', 'DB_' -replace '^# FORWARD_DB_PORT', 'FORWARD_DB_PORT' | Set-Content .env"
-echo [INIT] Telechargement des dependances PHP (Composer)...
-echo Cela peut prendre quelques minutes la premiere fois.
-docker run --rm -v "%cd%:/app" composer install --ignore-platform-reqs
-docker compose up -d --force-recreate --wait
+if not exist "vendor\autoload.php" (
+    echo [INIT] Telechargement des dependances PHP (Composer)...
+    echo Cela peut prendre quelques minutes la premiere fois.
+    docker run --rm -v "%cd%:/app" composer install --ignore-platform-reqs
+)
+docker compose up -d --wait
 if errorlevel 1 (
 	set ERROR_MESSAGE=Lancement du conteneur Laravel/PostgreSQL a echoue.
 	popd
