@@ -27,35 +27,35 @@ echo [BOOTSTRAP] Verification et recuperation des sous-projets
 echo ========================================================
 
 echo [1/9] Clonage API IA (FastAPI)
-if not exist "API-IA\" (
+if exist "API-IA\" (
+    echo [OK] Dossier API-IA deja present.
+) else (
     echo [CLONAGE] Recuperation de API-IA...
     git clone https://github.com/GroupMSPR/Health-IA-FastAPI.git API-IA
-) else (
-    echo [OK] Dossier API-IA deja present.
 )
 
 echo [2/9] Clonage ETL
-if not exist "ETL\" (
+if exist "ETL\" (
+    echo [OK] Dossier ETL deja present.
+) else (
     echo [CLONAGE] Recuperation de l'ETL...
     git clone https://github.com/GroupMSPR/Health-IA-ETL.git ETL
-) else (
-    echo [OK] Dossier ETL deja present.
 )
 
 echo [3/9] Clonage Grafana
-if not exist "Grafana\" (
+if exist "Grafana\" (
+    echo [OK] Dossier Grafana deja present.
+) else (
     echo [CLONAGE] Recuperation de Grafana...
     git clone https://github.com/GroupMSPR/Health-IA-Grafana.git Grafana
-) else (
-    echo [OK] Dossier Grafana deja present.
 )
 
 echo [4/9] Clonage Backend (HealthAI-Coach)
-if not exist "HealthAI-Coach\" (
+if exist "HealthAI-Coach\" (
+    echo [OK] Dossier HealthAI-Coach deja present.
+) else (
     echo [CLONAGE] Recuperation du Backend Laravel...
     git clone https://github.com/GroupMSPR/Health-IA-Backend.git HealthAI-Coach
-) else (
-    echo [OK] Dossier HealthAI-Coach deja present.
 )
 echo.
 
@@ -84,19 +84,25 @@ echo.
 
 echo [5/9] Lancement de l'API Laravel et de PostgreSQL...
 pushd "HealthAI-Coach"
-if not exist ".env" (
-    echo [INIT] Creation automatique du fichier .env Laravel...
-    copy .env.example .env >nul
 
-	echo [INIT] Decommentation automatique des variables de base de donnees...
-    powershell -Command "(Get-Content .env) -replace '^# DB_', 'DB_' -replace '^# FORWARD_DB_PORT', 'FORWARD_DB_PORT' | Set-Content .env"
-)
+:: ==========================================
+:: BLOCS SECURISES (SANS PARENTHESES PIEGES)
+:: ==========================================
+if exist ".env" goto skip_laravel_env
+echo [INIT] Creation automatique du fichier .env Laravel...
+copy .env.example .env >nul
+echo [INIT] Decommentation automatique des variables de base de donnees...
 powershell -Command "(Get-Content .env) -replace '^# DB_', 'DB_' -replace '^# FORWARD_DB_PORT', 'FORWARD_DB_PORT' | Set-Content .env"
-if not exist "vendor\autoload.php" (
-    echo [INIT] Telechargement des dependances PHP (Composer)...
-    echo Cela peut prendre quelques minutes la premiere fois.
-    docker run --rm -v "%cd%:/app" composer install --ignore-platform-reqs
-)
+:skip_laravel_env
+
+if exist "vendor\autoload.php" goto skip_composer
+echo [INIT] Telechargement des dependances PHP (Composer)...
+echo Cela peut prendre quelques minutes la premiere fois.
+docker run --rm -v "%cd%:/app" composer install --ignore-platform-reqs
+:skip_composer
+:: ==========================================
+
+:: Lancement INTELLIGENT (Sans --force-recreate)
 docker compose up -d --wait
 if errorlevel 1 (
 	set ERROR_MESSAGE=Lancement du conteneur Laravel/PostgreSQL a echoue.
@@ -104,18 +110,16 @@ if errorlevel 1 (
 	goto error_handler
 )
 echo [OK] Conteneurs demarres et healthchecks passes.
-
 echo.
 echo Attente du demarrage complet de PostgreSQL...
 set RETRY_COUNT=0
 set MAX_RETRIES=30
 :wait_postgres
 set /a RETRY_COUNT+=1
-echo [!RETRY_COUNT!/!MAX_RETRIES!] Verification du statut PostgreSQL...
 docker compose exec -T pgsql pg_isready -U sail >nul 2>&1
 if errorlevel 1 (
 	if !RETRY_COUNT! geq !MAX_RETRIES! (
-		set ERROR_MESSAGE=PostgreSQL n'a pas demarre apres 30 tentatives en 2 minutes.
+		set ERROR_MESSAGE=PostgreSQL n'a pas demarre apres 30 tentatives.
 		popd
 		goto error_handler
 	)
@@ -130,7 +134,6 @@ set RETRY_COUNT=0
 set MAX_RETRIES=15
 :wait_laravel
 set /a RETRY_COUNT+=1
-echo [!RETRY_COUNT!/!MAX_RETRIES!] Verification du conteneur Laravel...
 docker compose exec -T laravel php -r "echo 'ok';" >nul 2>&1
 if errorlevel 1 (
 	if !RETRY_COUNT! geq !MAX_RETRIES! (
@@ -148,7 +151,6 @@ echo Verification des identifiants PostgreSQL Sail...
 docker compose exec -T pgsql sh -lc "PGPASSWORD=%DB_PASSWORD% psql -U sail -d laravel -tAc 'select 1' > /dev/null 2>&1"
 if not errorlevel 1 goto migrate_db
 
-echo.
 echo Le cluster PostgreSQL a ete initialise avec d'anciens identifiants.
 echo Reparation du role sail et de la base laravel...
 docker compose exec -T pgsql sh -lc "PGPASSWORD=%DB_PASSWORD% psql -U postgres -d postgres -f -" < docker\repair-postgres.sql
@@ -158,7 +160,6 @@ if errorlevel 1 (
 	goto error_handler
 )
 echo [OK] Cluster PostgreSQL repare.
-
 :migrate_db
 
 echo.
@@ -176,58 +177,37 @@ if !FRESH_MODE! equ 1 (
 	goto after_seed
 )
 
-echo Lancement des migrations...
 docker compose exec -T laravel php artisan migrate --force
 if errorlevel 1 (
 	set ERROR_MESSAGE=Les migrations Laravel ont echoue.
 	popd
 	goto error_handler
 )
-echo [OK] Migrations completees.
-
-echo Lancement du seeding...
-docker compose exec -T laravel php artisan db:seed --force
-if errorlevel 1 (
-	echo [WARN] Le seeding a echoue, souvent a cause de doublons deja presents.
-	echo [WARN] Le script continue pour demarrer ETL et Grafana.
-	goto after_seed
-)
-echo [OK] Base de donnees ensemencee.
+docker compose exec -T laravel php artisan db:seed --force >nul 2>&1
+echo [OK] Migrations et verifications terminees.
 :after_seed
 
 echo.
-echo Correction des permissions storage/cache...
-docker compose exec -T laravel chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache >nul 2>&1
-docker compose exec -T laravel chown -R sail:sail /var/www/html/storage /var/www/html/bootstrap/cache >nul 2>&1
-docker compose exec -T laravel chmod -R 777 /var/www/html >nul 2>&1
-echo [OK] Permissions corrigees.
-
-echo.
-echo Generation Key / Optimisation du cache Laravel (config, routes, vues)...
-docker compose exec -T laravel php artisan key:generate >nul 2>&1
-docker compose exec -T laravel php artisan optimize >nul 2>&1
-if errorlevel 1 (
-	echo [WARN] L'optimisation Laravel a echoue, le backend fonctionnera sans cache.
-) else (
-	echo [OK] Key generee et cache Laravel optimise.
+echo Generation Key / Optimisation du cache Laravel...
+for /f "tokens=*" %%a in ('findstr "^APP_KEY=" .env') do set CURRENT_APP_KEY=%%a
+if "!CURRENT_APP_KEY!"=="APP_KEY=" (
+    echo [INIT] Generation de la cle Laravel manquante...
+    docker compose exec -T laravel php artisan key:generate >nul 2>&1
 )
-
-echo.
-echo Optimisation Filament (composants, icones)...
+docker compose exec -T laravel php artisan optimize >nul 2>&1
 docker compose exec -T laravel php artisan filament:optimize >nul 2>&1
-docker compose exec -T laravel php artisan icons:cache >nul 2>&1
-echo [OK] Cache Filament optimise.
+echo [OK] Cache Laravel et Filament optimises.
 popd
 
 echo.
 echo [7/9] Lancement de l'ETL (Python) et de Grafana...
 pushd "ETL"
-if not exist ".env" (
-    if exist ".env.example" (
-        echo [INIT] Creation automatique du fichier .env ETL...
-        copy .env.example .env >nul
-    )
+if exist ".env" goto skip_etl_env
+if exist ".env.example" (
+    echo [INIT] Creation automatique du fichier .env ETL...
+    copy .env.example .env >nul
 )
+:skip_etl_env
 docker compose up -d --build
 if errorlevel 1 (
 	set ERROR_MESSAGE=Lancement des conteneurs ETL/Grafana a echoue.
@@ -238,14 +218,14 @@ echo [OK] ETL et Grafana demarres.
 popd
 
 echo.
-echo [8/9] Lancement de l'API IA (FastAPI), Models Ollama et des volumes...
+echo [8/9] Lancement de l'API IA (FastAPI)...
 pushd "API-IA"
-if not exist ".env" (
-    if exist ".env.example" (
-        echo [INIT] Creation automatique du fichier .env API IA...
-        copy .env.example .env >nul
-    )
+if exist ".env" goto skip_ia_env
+if exist ".env.example" (
+    echo [INIT] Creation automatique du fichier .env API IA...
+    copy .env.example .env >nul
 )
+:skip_ia_env
 docker compose up -d --build
 if errorlevel 1 (
 	set ERROR_MESSAGE=Lancement du conteneur API IA a echoue.
@@ -259,19 +239,17 @@ echo.
 echo ========================================================
 echo [9/9] [IA SETUP] Verification du modele LLaVA
 echo ========================================================
-:: On attend 5 secondes pour s'assurer qu'Ollama a bien fini de demarrer en interne
 timeout /t 5 /nobreak >nul
-
-docker compose exec -T ollama ollama list | findstr "llava" >nul 2>&1
+docker exec healthai_ollama ollama list | findstr "llava" >nul 2>&1
 if errorlevel 1 (
     echo [INIT] Le modele LLaVA n'est pas installe sur cette machine.
     echo [INIT] Telechargement en cours... 
-    echo [ATTENTION] C'est un fichier de ~4.7 Go, cela depend de votre connexion internet, patience !
-    docker compose exec -T ollama ollama pull llava
+    echo [ATTENTION] C'est un fichier de ~4.7 Go, patience !
+    docker exec healthai_ollama ollama pull llava
     if errorlevel 1 (
-        echo [WARN] Le telechargement de LLaVA a echoue. Vous devrez le faire manuellement plus tard.
+        echo [WARN] Le telechargement a echoue. Vous devrez le faire manuellement.
     ) else (
-        echo [OK] Modele LLaVA telecharge et installe avec succes !
+        echo [OK] Modele LLaVA telecharge avec succes !
     )
 ) else (
     echo [OK] Le modele LLaVA est deja present et operationnel.
@@ -294,14 +272,14 @@ echo.
 echo Identifiants Grafana : admin / admin
 echo ========================================================
 echo.
-echo [INFOS] Mode d'execution : !AUTO_MODE! (0=interactif, 1=automatique CI/CD)
+echo [INFOS] Mode d'execution : !AUTO_MODE! (0=interactif, 1=automatique)
 echo [INFOS] Mode fresh       : !FRESH_MODE! (0=incremental, 1=reset complet)
 echo.
 if !AUTO_MODE! equ 0 (
 	pause
 	goto end
 )
-echo [AUTO MODE] Demarrage automatique termine. Pas de pause pour CI/CD.
+echo [AUTO MODE] Demarrage automatique termine.
 goto end
 
 :error_handler
