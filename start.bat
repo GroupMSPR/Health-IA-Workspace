@@ -5,7 +5,6 @@ echo ========================================================
 echo      Demarrage du projet HealthAI Coach (MSPR)
 echo ========================================================
 
-:: Definition des variables obligatoires pour Laravel Sail
 set WWWUSER=1000
 set WWWGROUP=1000
 set DB_PASSWORD=password
@@ -13,10 +12,8 @@ set AUTO_MODE=0
 set FRESH_MODE=0
 set ERROR_MESSAGE=
 
-:: Se placer dans le repertoire du script (fonctionne meme si lance depuis ailleurs)
 cd /d "%~dp0"
 
-:: Verification des arguments
 for %%A in (%*) do (
 	if "%%A"=="--auto" set AUTO_MODE=1
 	if "%%A"=="--fresh" set FRESH_MODE=1
@@ -26,15 +23,15 @@ echo ========================================================
 echo [BOOTSTRAP] Verification et recuperation des sous-projets
 echo ========================================================
 
-echo [1/9] Clonage API IA (FastAPI)
-if exist "API-IA\" (
-    echo [OK] Dossier API-IA deja present.
+echo [1/10] Clonage API IA (FastAPI)
+if exist "API-Ollama\" (
+    echo [OK] Dossier API-Ollama deja present.
 ) else (
-    echo [CLONAGE] Recuperation de API-IA...
-    git clone https://github.com/GroupMSPR/Health-IA-FastAPI.git API-IA
+    echo [CLONAGE] Recuperation de API-Ollama...
+    git clone https://github.com/GroupMSPR/Health-IA-FastAPI.git API-Ollama
 )
 
-echo [2/9] Clonage ETL
+echo [2/10] Clonage ETL
 if exist "ETL\" (
     echo [OK] Dossier ETL deja present.
 ) else (
@@ -42,7 +39,7 @@ if exist "ETL\" (
     git clone https://github.com/GroupMSPR/Health-IA-ETL.git ETL
 )
 
-echo [3/9] Clonage Grafana
+echo [3/10] Clonage Grafana
 if exist "Grafana\" (
     echo [OK] Dossier Grafana deja present.
 ) else (
@@ -50,16 +47,23 @@ if exist "Grafana\" (
     git clone https://github.com/GroupMSPR/Health-IA-Grafana.git Grafana
 )
 
-echo [4/9] Clonage Backend (HealthAI-Coach)
-if exist "HealthAI-Coach\" (
-    echo [OK] Dossier HealthAI-Coach deja present.
+echo [4/10] Clonage Backend (Laravel)
+if exist "Backend\" (
+    echo [OK] Dossier Backend deja present.
 ) else (
     echo [CLONAGE] Recuperation du Backend Laravel...
-    git clone https://github.com/GroupMSPR/Health-IA-Backend.git HealthAI-Coach
+    git clone https://github.com/GroupMSPR/Health-IA-Backend.git Backend
+)
+
+echo [5/10] Clonage Frontend (React SPA)
+if exist "Frontend\" (
+    echo [OK] Dossier Frontend deja present.
+) else (
+    echo [CLONAGE] Recuperation du Frontend React...
+    git clone https://github.com/GroupMSPR/Health-IA-Frontend.git Frontend
 )
 echo.
 
-:: PRECHECKS - Verifier que Docker et docker compose sont disponibles
 echo [PRECHECKS] Verification de l'environnement...
 docker --version >nul 2>&1
 if errorlevel 1 (
@@ -73,7 +77,6 @@ if errorlevel 1 (
 	goto error_handler
 )
 
-:: Verifier que Docker daemon tourne
 docker info >nul 2>&1
 if errorlevel 1 (
 	set ERROR_MESSAGE=Le daemon Docker ne repond pas. Demarrez Docker Desktop.
@@ -82,12 +85,9 @@ if errorlevel 1 (
 echo [OK] Docker et docker compose detectes.
 echo.
 
-echo [5/9] Lancement de l'API Laravel et de PostgreSQL...
-pushd "HealthAI-Coach"
+echo [6/10] Lancement de l'API Laravel et de PostgreSQL...
+pushd "Backend"
 
-:: ==========================================
-:: BLOCS SECURISES (SANS PARENTHESES PIEGES)
-:: ==========================================
 if exist ".env" goto skip_laravel_env
 echo [INIT] Creation automatique du fichier .env Laravel...
 copy .env.example .env >nul
@@ -100,9 +100,7 @@ echo [INIT] Telechargement des dependances PHP (Composer)...
 echo Cela peut prendre quelques minutes la premiere fois.
 docker run --rm -v "%cd%:/app" composer install --ignore-platform-reqs
 :skip_composer
-:: ==========================================
 
-:: Lancement INTELLIGENT (Sans --force-recreate)
 docker compose up -d --wait
 if errorlevel 1 (
 	set ERROR_MESSAGE=Lancement du conteneur Laravel/PostgreSQL a echoue.
@@ -163,7 +161,7 @@ echo [OK] Cluster PostgreSQL repare.
 :migrate_db
 
 echo.
-echo [6/9] Migration de la base de donnees (creation des tables)...
+echo Migration de la base de donnees (creation des tables)...
 
 if !FRESH_MODE! equ 1 (
 	echo [FRESH] Reset complet de la base de donnees...
@@ -200,7 +198,25 @@ echo [OK] Cache Laravel et Filament optimises.
 popd
 
 echo.
-echo [7/9] Lancement de l'ETL (Python) et de Grafana...
+echo [7/10] Lancement du Frontend (React SPA)...
+pushd "Frontend"
+if exist ".env" goto skip_frontend_env
+if exist ".env.example" (
+    echo [INIT] Creation automatique du fichier .env Frontend...
+    copy .env.example .env >nul
+)
+:skip_frontend_env
+docker compose up -d --build
+if errorlevel 1 (
+	set ERROR_MESSAGE=Lancement du conteneur Frontend React a echoue.
+	popd
+	goto error_handler
+)
+echo [OK] Frontend React lance avec succes.
+popd
+
+echo.
+echo [8/10] Lancement de l'ETL (Python) et de Grafana...
 pushd "ETL"
 if exist ".env" goto skip_etl_env
 if exist ".env.example" (
@@ -218,8 +234,8 @@ echo [OK] ETL et Grafana demarres.
 popd
 
 echo.
-echo [8/9] Lancement de l'API IA (FastAPI)...
-pushd "API-IA"
+echo [9/10] Lancement de l'API IA (FastAPI)...
+pushd "API-Ollama"
 if exist ".env" goto skip_ia_env
 if exist ".env.example" (
     echo [INIT] Creation automatique du fichier .env API IA...
@@ -237,7 +253,7 @@ popd
 
 echo.
 echo ========================================================
-echo [9/9] [IA SETUP] Verification du modele LLaVA
+echo [10/10] [IA SETUP] Verification du modele LLaVA
 echo ========================================================
 timeout /t 5 /nobreak >nul
 docker exec healthai_ollama ollama list | findstr "llava" >nul 2>&1
@@ -264,6 +280,7 @@ echo Maintenez la touche CTRL appuyee et cliquez sur les liens :
 echo.
 echo - API Laravel      : http://localhost
 echo - BackOffice Admin : http://localhost/admin
+echo - Frontend React   : http://localhost:5173
 echo - API Doc Swagger  : http://localhost/api/documentation
 echo - Grafana          : http://localhost:3000
 echo - API IA (FastAPI) : http://localhost:4000/docs
