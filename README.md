@@ -1,4 +1,4 @@
-# 🏥 Health-IA-Workspace - Orchestration & Guide de Démarrage Global
+# 🚀 Health-IA-Workspace - Orchestration & Guide de Démarrage Global
 
 **Dépôt principal (Workspace)** de la plateforme HealthAI Coach.  
 Ce repository orchestre et centralise l'ensemble des microservices du projet (Backend, Frontend, ETL, API IA et Monitoring) pour permettre un déploiement simple, rapide et reproductible.
