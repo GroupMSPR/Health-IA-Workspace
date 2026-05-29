@@ -352,6 +352,16 @@ Pour obtenir des détails spécifiques sur chaque composant :
 
 ---
 
+## 📚 Documentation Technique Approfondie
+
+Pour explorer plus en détail la conception technique et conceptuelle du projet, consultez les guides dédiés dans le dossier `docs/` :
+
+- 🗺️ [Architecture Globale & Flux de communication](docs/architecture-globale.md)
+- 🛠️ [Justification des choix technologiques](docs/choix-techniques.md)
+- 🗄️ [Structure de la base de données & Dictionnaire de données](docs/dictionnaire-donnees.md)
+
+---
+
 Dernière mise à jour : 29 mai 2026
 
 Pour toute question ou contribution, consultez le repository ou ouvrez une issue.
