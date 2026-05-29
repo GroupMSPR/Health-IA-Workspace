@@ -58,35 +58,35 @@ Le projet global est articulé autour de **3 stacks Docker principales** et de p
  
 ---
 
-### 2. Stack Back
+### 2. Stack Front
 
 `Health-IA-Frontend`
-  - interface utilisateur web
-  - développée avec React 19 et Vite
+  - Développée avec React 19, Vite & NodeJs 20+
+  - Interface utilisateur web
 
 ---
 
 ### 3. Stack Data & Monitoring
 
 `Health-IA-ETL`
-  - pipeline Python autonome
-  - extraction des fichiers depuis Google Drive
-  - transformation avec Pandas
-  - chargement en base de données
+  - Pipeline Python autonome
+  - Extraction des fichiers depuis Google Drive
+  - Transformation avec Pandas
+  - Load en base de données
 
 `Health-IA-Grafana`
-  - dashboards préconfigurés
-  - monitoring des utilisateurs
-  - visualisation des métriques santé
+  - Dashboards préconfigurés
+  - Monitoring des utilisateurs
+  - Visualisation des métriques santé
  
 ---
 
 ### 4. Stack FastAPI & IA
 
 `Health-IA-FastAPI`
-  - microservice IA local
+  - Microservice IA local
   - Ollama (pull d'un model LLaVA)
-  - analyse nutritionnelle des repas
+  - Analyse nutritionnelle des repas
 
 ---
 
