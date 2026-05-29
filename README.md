@@ -105,13 +105,13 @@ graph TD
     Grafana("📊 Dashboards (Grafana)")
 
     %% Flux Applicatifs (Le Backend au centre)
-    Front -- "Requêtes HTTP (REST)" --> Back
-    Back -- "Demande d'analyse IA" --> IA
+    Front <-->|"Requêtes et Réponses (REST)"| Back
+    Back <-->|"Envoi d'image et Retour de l'IA"| IA
     
     %% Flux de Données (La DB au centre)
-    Back -- "Lecture / Écriture SQL" --> DB
+    Back <-->|"Lecture et Écriture SQL"| DB
     ETL -- "Ingestion de données" --> DB
-    Grafana -- "Requêtes SQL (Lecture)" --> DB
+    Grafana <-->|"Requêtes et Métriques en temps réel"| DB
 ```
 ---
 
