@@ -298,6 +298,12 @@ Développeurs MSPR :
 
 ---
 
+## 📄 Licence
+
+Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
+
+---
+
 ## 🔗 Liens des sous-modules
 
 Pour obtenir des détails spécifiques sur chaque composant :
