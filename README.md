@@ -19,7 +19,7 @@ Ce repository orchestre et centralise l'ensemble des microservices du projet (Ba
 - [Prérequis](#prérequis)
 - [Démarrage rapide (Recommandé)](#démarrage-rapide-recommandé)
 - [Configuration des ports](#configuration-des-ports)
-- [Arrêt et redémarrage](#arrêt-et-rédemarrage)
+- [Arrêt et redémarrage](#arrêt-et-redémarrage)
 - [Troubleshooting (Résolution des problèmes)](#troubleshooting-résolution-des-problèmes)
 - [Checklist opérationnelle](#checklist-opérationnelle)
 
