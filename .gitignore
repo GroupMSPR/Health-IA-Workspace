@@ -1,7 +1,8 @@
-API-IA/
+Backend/
+Frontend/
+API-Ollama/
 ETL/
 Grafana/
-HealthAI-Coach/
 Datasets/
 
 .env
