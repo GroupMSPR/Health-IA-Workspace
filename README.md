@@ -50,7 +50,7 @@ Le projet global est articulé autour de **4 stacks Docker principales** et de p
 
 ---
 
-### 1. Stack Back
+### 1. Stack Back & Data
 
 `Health-IA-Backend`
   - API REST construite sous Laravel 12
@@ -66,7 +66,7 @@ Le projet global est articulé autour de **4 stacks Docker principales** et de p
 
 ---
 
-### 3. Stack Data & Monitoring
+### 3. Stack Pipeline & Monitoring
 
 `Health-IA-ETL`
   - Pipeline Python autonome
