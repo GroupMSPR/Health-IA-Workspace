@@ -94,28 +94,24 @@ Le projet global est articulé autour de **4 stacks Docker principales** et de p
 
 ```mermaid
 graph TD
-    Dev("👨‍💻 Développeur")
-    Start("🚀 Script d'Orchestration (start.bat)")
-    Docker("🐳 Docker Compose (Réseau Global)")
+    %% Couche Applicative
     Front("💻 Frontend Web (React)")
     Back("⚙️ Backend API (Laravel)")
-    DB("🗄️ PostgreSQL Database")
     IA("🧠 API IA (FastAPI + LLaVA)")
-    Data("📊 ETL Python & Grafana")
 
-    Dev -- "Exécute le point d'entrée" --> Start
-    Start -- "Vérifications et migrations" --> Docker
-    
-    Docker -- "Déploie l'Interface Web" --> Front
-    Docker -- "Déploie l'API Principale" --> Back
-    Docker -- "Déploie la Base de données" --> DB
-    Docker -- "Déploie la Stack IA" --> IA
-    Docker -- "Déploie le Monitoring & Ingestion" --> Data
+    %% Couche Data
+    ETL("📥 Pipeline ETL (Python)")
+    DB("🗄️ PostgreSQL Database")
+    Grafana("📊 Dashboards (Grafana)")
 
-    Front -- "Requêtes REST" --> Back
-    Back -- "Lecture et Écriture SQL" --> DB
+    %% Flux Applicatifs (Le Backend au centre)
+    Front -- "Requêtes HTTP (REST)" --> Back
     Back -- "Demande d'analyse IA" --> IA
-    Data -- "Ingestion et Visualisation" --> DB
+    
+    %% Flux de Données (La DB au centre)
+    Back -- "Lecture / Écriture SQL" --> DB
+    ETL -- "Ingestion de données" --> DB
+    Grafana -- "Requêtes SQL (Lecture)" --> DB
 ```
 ---
 
