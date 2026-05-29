@@ -46,7 +46,7 @@ afin de garantir une mise en route simple et reproductible pour l'ensemble des d
 
 ## Architecture
 
-Le projet global est articulé autour de **3 stacks Docker principales** et de plusieurs sous-modules interconnectés.
+Le projet global est articulé autour de **4 stacks Docker principales** et de plusieurs sous-modules interconnectés.
 
 ---
 
