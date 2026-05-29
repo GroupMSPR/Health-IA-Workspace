@@ -1,223 +1,313 @@
-# HealthAI Coach - Guide de demarrage complet
+# 🏥 Health-IA-Workspace - Orchestration & Guide de Démarrage Global
 
-Bienvenue dans le projet HealthAI Coach.
-Ce README explique comment etre operationnel rapidement sur les 3 briques:
+**Dépôt principal (Workspace)** de la plateforme HealthAI Coach.  
+Ce repository orchestre et centralise l'ensemble des microservices du projet (Backend, Frontend, ETL, API IA et Monitoring) pour permettre un déploiement simple, rapide et reproductible.
 
-- API Laravel + PostgreSQL
-- ETL Python (ingestion des donnees)
-- Grafana (visualisation)
+![Docker](https://img.shields.io/badge/Docker-Orchestration-blue?logo=docker&logoColor=white)
+![Laravel](https://img.shields.io/badge/Backend-Laravel_12-red?logo=laravel&logoColor=white)
+![React](https://img.shields.io/badge/Frontend-React_19-blue?logo=react&logoColor=white)
+![Python](https://img.shields.io/badge/Pipeline-ETL_Python-green?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/IA-FastAPI_LLaVA-009688?logo=fastapi&logoColor=white)
+![Grafana](https://img.shields.io/badge/Monitoring-Grafana-F46800?logo=grafana&logoColor=white)
 
-Le guide est pense pour Windows + Docker Desktop, en mode simple et reproductible.
+---
 
-## 1) Vue d'ensemble
+## 📋 Table des matières
 
-Le projet est compose de 2 stacks Docker:
+- [Vue d'ensemble](#vue-densemble)
+- [Architecture & Composants](#architecture--composants)
+- [Prérequis](#prérequis)
+- [Démarrage rapide (Recommandé)](#démarrage-rapide-recommandé)
+- [Configuration des ports](#configuration-des-ports)
+- [Arrêt et redémarrage](#arrêt-et-redemarrage)
+- [Troubleshooting (Résolution des problèmes)](#troubleshooting-résolution-des-problèmes)
+- [Checklist opérationnelle](#checklist-opérationnelle)
 
-- HealthAI-Coach: API Laravel + base PostgreSQL
-- ETL: pipeline Python + Grafana
+---
 
-Point d'entree recommande:
+## Vue d'ensemble
 
-- Lancer le script [start.bat](start.bat) a la racine du workspace
+Bienvenue dans le projet **HealthAI Coach**.
 
-Ce script:
+Le but de ce workspace est de fournir une solution clé en main pour lancer simultanément toutes les briques applicatives de la plateforme.
 
-1. demarre API + PostgreSQL
-2. attend la base
-3. repare automatiquement PostgreSQL si ancien cluster detecte
-4. lance les migrations + seeders Laravel
-5. demarre ETL + Grafana
-
-## 2) Prerequis
+Le guide et les scripts associés sont pensés principalement pour un environnement :
 
 - Windows
-- Docker Desktop en cours d'execution
-- Docker Compose v2 disponible (`docker compose`)
+- Docker Desktop
+- WSL2 (recommandé)
 
-Ports utilises:
+afin de garantir une mise en route simple et reproductible pour l'ensemble des développeurs.
 
-- API: 80
-- PostgreSQL Docker: 55432
-- Grafana: 3000
+---
 
-Note importante:
-Le port 55432 est volontaire pour eviter les conflits avec un PostgreSQL local Windows en 5432.
+## Architecture & Composants
 
-## 3) Demarrage rapide (recommande)
+Le projet global est articulé autour de **2 stacks Docker principales** et de plusieurs sous-modules interconnectés.
 
-1. Ouvrir le dossier racine du projet
-2. Double-cliquer sur [start.bat](start.bat)
+---
 
-Attendre le message de fin puis ouvrir:
+### 1. Stack Application & IA
 
-- API: http://localhost
-- BackOffice: http://localhost/admin
-- Swagger: http://localhost/api/documentation
-- Grafana: http://localhost:3000
+- `Health-IA-Backend`
+  - API REST construite sous Laravel 12
+  - connectée à une base PostgreSQL
 
-Identifiants Grafana par defaut:
+- `Health-IA-Frontend`
+  - interface utilisateur web
+  - développée avec React 19 et Vite
 
-- user: admin
-- password: admin
+- `Health-IA-FastAPI`
+  - microservice IA local
+  - connecté à Ollama (modèle LLaVA)
+  - analyse nutritionnelle des repas
 
-## 4) Configuration de la base PostgreSQL
+---
 
-Configuration cible pour outils externes (DBeaver, PhpStorm):
+### 2. Stack Data & Monitoring
 
-- Host: localhost
-- Port: 55432
-- Database: laravel
-- Username: sail
-- Password: password
+- `Health-IA-ETL`
+  - pipeline Python autonome
+  - extraction des fichiers depuis Google Drive
+  - transformation avec Pandas
+  - chargement en base de données
 
-Important:
+- `Health-IA-Grafana`
+  - dashboards préconfigurés
+  - monitoring des utilisateurs
+  - visualisation des métriques santé
 
-- `pgsql` fonctionne uniquement depuis les conteneurs Docker (pas depuis Windows)
-- Si vous utilisiez l'IP WSL avant, vous pouvez maintenant rester sur `localhost:55432`
+---
 
-## 5) Variables d'environnement API
+## Prérequis
 
-Fichier: [HealthAI-Coach/.env](HealthAI-Coach/.env)
+Pour exécuter correctement l'ensemble des services, assurez-vous de disposer des éléments suivants :
 
-Variables principales:
+- 💻 **Système d'exploitation**
+  - Windows
+  - WSL2 recommandé
 
-- DB_HOST=pgsql
-- DB_PORT=5432
-- DB_DATABASE=laravel
-- DB_USERNAME=sail
-- DB_PASSWORD=password
-- FORWARD_DB_PORT=55432
+- 🐳 **Docker Desktop**
+  - installé
+  - démarré
 
-Pourquoi deux ports differents?
+- 🛠️ **Docker Compose v2**
+  - disponible dans le terminal
+  - commande :
 
-- `DB_PORT=5432` est le port interne entre conteneurs
-- `FORWARD_DB_PORT=55432` est le port expose cote Windows
+```bash
+docker compose
+```
 
-## 6) ETL - ce qu'il faut configurer
+---
 
-L'ETL lit des fichiers depuis Google Drive et charge les donnees dans PostgreSQL.
+## Démarrage rapide (Recommandé)
 
-Fichiers utiles:
+Le déploiement est entièrement automatisé par un script d'orchestration situé à la racine du workspace.
 
-- [ETL/.env](ETL/.env)
-- [ETL/.env.exemple](ETL/.env.exemple)
-- [ETL/main.py](ETL/main.py)
-- [ETL/config.py](ETL/config.py)
+### Étapes
 
-Variables ETL attendues:
+1. Ouvrez le dossier racine :
 
-- DATABASE_URL
-- GCS_BUCKET
-- TO_IMPORT_ID
-- ARCHIVE_ID
-- ERROR_ID
-- LOG_ID
-- GOOGLE_TOKEN_PICKLE
+```text
+Health-IA-Workspace
+```
 
-Exemple de DATABASE_URL (depuis le conteneur ETL):
+2. Lancez le script d'initialisation :
 
-`postgresql://sail:password@host.docker.internal:55432/laravel`
+```bash
+start.bat
+```
 
-Preparation Google Drive:
+---
 
-1. creer les dossiers: ToImport, Archive, Error, Log
-2. recuperer les IDs de ces dossiers
-3. renseigner les IDs dans [ETL/.env](ETL/.env)
-4. configurer les credentials OAuth Google (voir [ETL/README.md](ETL/README.md))
+## Ce que fait automatiquement `start.bat`
 
-## 7) Demarrage manuel (si besoin)
+Le script :
 
-Depuis la racine:
+- clone tous les repos (back, front, etl, fast-api, grafana)
+- démarre l'API Backend
+- démarre PostgreSQL
+- attend que PostgreSQL soit prêt
+- répare automatiquement les anciens clusters incompatibles
+- exécute les migrations Laravel
+- exécute les seeders Laravel
+- génère la clé Laravel & l'optimize
+- démarre le Front React
+- démarre l'ETL & Grafana
+- démarre l'API IA avec FastAPI
+- démarre Ollama
+- télécharge le model LLaVA de Ollama
 
-1. API + DB
+---
 
-`cd HealthAI-Coach`
+## Configuration des ports
 
-`docker compose up -d --force-recreate`
+Afin d’éviter les conflits avec des services locaux déjà présents sur la machine hôte, certains ports ont été personnalisés.
 
-2. Migrations Laravel
+| Service | Port Externe (Hôte) | Port Interne (Conteneur) | Description |
+|----------|--------------------|--------------------------|-------------|
+| API Backend (Laravel) | `8080` | `80` | Point d'entrée API REST |
+| PostgreSQL Docker | `55432` | `5432` | Évite le conflit avec PostgreSQL local |
+| Frontend Web (React) | `5000` | `5173` | Interface utilisateur |
+| API IA (FastAPI) | `4000` | `4000` | Analyse IA des repas |
+| Ollama Server | `11434` | `11434` | Serveur LLM local |
+| Grafana | `3000` | `3000` | Dashboards de monitoring |
 
-`docker compose exec -T laravel.test php artisan migrate`
+---
 
-`docker compose exec -T laravel.test php artisan db:seed`
+## Arrêt et redémarrage
 
-3. ETL + Grafana
+### Arrêt complet des services
 
-`cd ..\ETL`
+Pour stopper proprement l'intégralité des conteneurs :
 
-`docker compose up -d --build`
+```bash
+# Arrêt de la stack principale
 
-## 8) Verifications rapides
+cd HealthAI-Coach
+docker compose down
 
-API + DB:
+# Arrêt de la stack ETL & Monitoring
 
-- [HealthAI-Coach](HealthAI-Coach)
-- `docker compose ps`
-- `docker compose exec -T laravel.test php artisan migrate:status`
+cd ..\ETL
+docker compose down
+```
 
-PostgreSQL depuis Windows:
+---
 
-- `Test-NetConnection localhost -Port 55432`
+### Redémarrage
 
-Grafana:
+Pour relancer proprement toute la plateforme :
 
-- ouvrir http://localhost:3000
+```bash
+start.bat
+```
 
-## 9) Resolution des problemes
+---
 
-### A) Je n'arrive pas a me connecter en localhost
+## Troubleshooting (Résolution des problèmes)
 
-Verifier:
+---
 
-1. que vous utilisez `localhost:55432` (pas 5432)
-2. que votre datasource IDE est bien mise a jour
-3. que Docker est demarre
+### A) Impossible de se connecter à PostgreSQL
+
+#### Vérifications
+
+Assurez-vous que :
+
+- vous utilisez bien le port :
+
+```text
+55432
+```
+
+et non :
+
+```text
+5432
+```
+
+- votre Data Source IDE est correctement configurée
+- le conteneur PostgreSQL tourne correctement :
+
+```bash
+docker ps
+```
+
+---
 
 ### B) Ancien cluster PostgreSQL incompatible
 
-Le script [start.bat](start.bat) tente une reparation automatique via:
+Le script `start.bat` tente automatiquement une réparation via :
 
-- [HealthAI-Coach/docker/repair-postgres.sql](HealthAI-Coach/docker/repair-postgres.sql)
+```text
+HealthAI-Coach/docker/repair-postgres.sql
+```
 
-Si echec, repartir proprement:
+---
 
-`cd HealthAI-Coach`
+### Réinitialisation complète PostgreSQL
 
-`docker compose down -v`
+```bash
+cd HealthAI-Coach
 
-`docker compose up -d --force-recreate`
+docker compose down -v
 
-`docker compose exec -T laravel.test php artisan migrate --seed`
+docker compose up -d --force-recreate
+
+docker compose exec -T laravel.test php artisan migrate --seed
+```
+
+> ⚠️ Attention :
+> Cette opération supprime totalement les volumes Docker PostgreSQL.
+
+---
 
 ### C) L'ETL ne charge aucun fichier
 
-Verifier:
+#### Vérifiez :
 
-1. les IDs Google Drive dans [ETL/.env](ETL/.env)
-2. le token OAuth Google
-3. la variable `DATABASE_URL`
-4. les logs ETL dans votre dossier Drive Log
+- les Folder IDs Google Drive dans :
 
-## 10) Arret et redemarrage
+```text
+ETL/.env
+```
 
-Arret:
+- la validité du token OAuth :
 
-- `cd HealthAI-Coach && docker compose down`
-- `cd ..\ETL && docker compose down`
+```text
+token.pickle
+```
 
-Redemarrage:
+- la variable :
 
-- relancer [start.bat](start.bat)
+```env
+DATABASE_URL=
+```
 
-## 11) Checklist operationnelle
+- les logs générés dans le dossier Google Drive :
 
-Avant de dire "environnement operationnel":
+```text
+Log/
+```
 
-1. API disponible sur http://localhost
-2. Swagger disponible sur http://localhost/api/documentation
-3. Connexion PostgreSQL valide en localhost:55432
-4. Grafana accessible sur http://localhost:3000
-5. `php artisan migrate:status` sans erreur
-6. ETL configure avec variables Drive + token OAuth
+---
 
-Si les 6 points sont OK, vous etes operationnel pour l'API, l'ETL et Grafana.
+## Checklist opérationnelle
+
+Avant de valider votre environnement :
+
+- [ ] Docker Desktop est actif
+- [ ] Docker possède suffisamment de RAM pour Ollama
+- [ ] Tous les fichiers `.env` ont été créés depuis `.env.example`
+- [ ] `start.bat` s’exécute sans erreur bloquante
+- [ ] Laravel répond correctement
+- [ ] Le modèle `llava` est installé dans Ollama
+
+---
+
+## 👥 Équipe
+
+Développeurs MSPR :
+
+- Ilan
+- Anthony
+- Diana
+
+---
+
+## 🔗 Liens des sous-modules
+
+Pour obtenir des détails spécifiques sur chaque composant :
+
+- 🏢 **Organisation** : GroupMSPR
+- 💻 **Frontend** : Health-IA-Frontend
+- ⚙️ **Backend Laravel** : Health-IA-Backend
+- 🧠 **Pipeline ETL** : Health-IA-ETL
+- 📷 **Microservice IA** : Health-IA-FastAPI
+- 📊 **Monitoring** : Health-IA-Grafana
+
+---
+
+Dernière mise à jour : 29 mai 2026
