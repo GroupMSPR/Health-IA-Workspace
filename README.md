@@ -3,6 +3,7 @@
 **Dépôt principal (Workspace)** de la plateforme HealthAI Coach.  
 Ce repository orchestre et centralise l'ensemble des microservices du projet (Backend, Frontend, ETL, API IA et Monitoring) pour permettre un déploiement simple, rapide et reproductible.
 
+![Type](https://img.shields.io/badge/Type-Orchestrateur-purple)
 ![Docker](https://img.shields.io/badge/Docker-Orchestration-blue?logo=docker&logoColor=white)
 ![Laravel](https://img.shields.io/badge/Backend-Laravel_12-red?logo=laravel&logoColor=white)
 ![React](https://img.shields.io/badge/Frontend-React_19-blue?logo=react&logoColor=white)
@@ -10,7 +11,6 @@ Ce repository orchestre et centralise l'ensemble des microservices du projet (Ba
 ![FastAPI](https://img.shields.io/badge/IA-FastAPI_LLaVA-009688?logo=fastapi&logoColor=white)
 ![Grafana](https://img.shields.io/badge/Monitoring-Grafana-F46800?logo=grafana&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green)
-![Type](https://img.shields.io/badge/Type-Orchestrateur-purple)
 
 ---
 
