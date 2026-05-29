@@ -1,4 +1,4 @@
-# 🗄️ Dictionnaire de Données (PostgreSQL)
+# 🗄️ Dictionnaire de Données (PostgreSQL) -- A CONTINUER
 
 Ce document décrit la structure des principales tables de la base de données PostgreSQL de l'application.
 
