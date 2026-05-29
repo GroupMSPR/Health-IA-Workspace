@@ -18,7 +18,7 @@ Ce repository orchestre et centralise l'ensemble des microservices du projet (Ba
 ## 📋 Table des matières
 
 - [Vue d'ensemble](#vue-densemble)
-- [Architecture & Composants](#architecture--composants)
+- [Architecture](#architecture)
 - [Prérequis](#prérequis)
 - [Démarrage rapide (Recommandé)](#démarrage-rapide-recommandé)
 - [Configuration des ports](#configuration-des-ports)
@@ -44,42 +44,79 @@ afin de garantir une mise en route simple et reproductible pour l'ensemble des d
 
 ---
 
-## Architecture & Composants
+## Architecture
 
-Le projet global est articulé autour de **2 stacks Docker principales** et de plusieurs sous-modules interconnectés.
+Le projet global est articulé autour de **3 stacks Docker principales** et de plusieurs sous-modules interconnectés.
 
 ---
 
-### 1. Stack Application & IA
+### 1. Stack Back
 
-- `Health-IA-Backend`
+`Health-IA-Backend`
   - API REST construite sous Laravel 12
-  - connectée à une base PostgreSQL
+  - Base de données PostgreSQL 15
+ 
+---
 
-- `Health-IA-Frontend`
+### 2. Stack Back
+
+`Health-IA-Frontend`
   - interface utilisateur web
   - développée avec React 19 et Vite
 
-- `Health-IA-FastAPI`
-  - microservice IA local
-  - connecté à Ollama (modèle LLaVA)
-  - analyse nutritionnelle des repas
-
 ---
 
-### 2. Stack Data & Monitoring
+### 3. Stack Data & Monitoring
 
-- `Health-IA-ETL`
+`Health-IA-ETL`
   - pipeline Python autonome
   - extraction des fichiers depuis Google Drive
   - transformation avec Pandas
   - chargement en base de données
 
-- `Health-IA-Grafana`
+`Health-IA-Grafana`
   - dashboards préconfigurés
   - monitoring des utilisateurs
   - visualisation des métriques santé
+ 
+---
 
+### 4. Stack FastAPI & IA
+
+`Health-IA-FastAPI`
+  - microservice IA local
+  - Ollama (pull d'un model LLaVA)
+  - analyse nutritionnelle des repas
+
+---
+
+### Diagramme de flux
+
+```mermaid
+graph TD
+    Dev("👨‍💻 Développeur")
+    Start("🚀 Script d'Orchestration (start.bat)")
+    Docker("🐳 Docker Compose (Réseau Global)")
+    Front("💻 Frontend Web (React)")
+    Back("⚙️ Backend API (Laravel)")
+    DB("🗄️ PostgreSQL Database")
+    IA("🧠 API IA (FastAPI + LLaVA)")
+    Data("📊 ETL Python & Grafana")
+
+    Dev -- "Exécute le point d'entrée" --> Start
+    Start -- "Vérifications et migrations" --> Docker
+    
+    Docker -- "Déploie l'Interface Web" --> Front
+    Docker -- "Déploie l'API Principale" --> Back
+    Docker -- "Déploie la Base de données" --> DB
+    Docker -- "Déploie la Stack IA" --> IA
+    Docker -- "Déploie le Monitoring & Ingestion" --> Data
+
+    Front -- "Requêtes REST" --> Back
+    Back -- "Lecture et Écriture SQL" --> DB
+    Back -- "Demande d'analyse IA" --> IA
+    Data -- "Ingestion et Visualisation" --> DB
+```
 ---
 
 ## Prérequis
