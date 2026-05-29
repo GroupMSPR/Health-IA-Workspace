@@ -19,7 +19,7 @@ Ce repository orchestre et centralise l'ensemble des microservices du projet (Ba
 - [Prérequis](#prérequis)
 - [Démarrage rapide (Recommandé)](#démarrage-rapide-recommandé)
 - [Configuration des ports](#configuration-des-ports)
-- [Arrêt et redémarrage](#arrêt-et-redemarrage)
+- [Arrêt et redémarrage](#arrêt-et-rédemarrage)
 - [Troubleshooting (Résolution des problèmes)](#troubleshooting-résolution-des-problèmes)
 - [Checklist opérationnelle](#checklist-opérationnelle)
 
@@ -132,7 +132,7 @@ Le script :
 - répare automatiquement les anciens clusters incompatibles
 - exécute les migrations Laravel
 - exécute les seeders Laravel
-- génère la clé Laravel & l'optimize
+- génère la clé back & optimize Laravel
 - démarre le Front React
 - démarre l'ETL & Grafana
 - démarre l'API IA avec FastAPI
