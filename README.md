@@ -318,3 +318,5 @@ Pour obtenir des détails spécifiques sur chaque composant :
 ---
 
 Dernière mise à jour : 29 mai 2026
+
+Pour toute question ou contribution, consultez le repository ou ouvrez une issue.
