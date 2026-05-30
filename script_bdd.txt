@@ -1,27 +1,24 @@
 CREATE TABLE users(
-   user_id SERIAL,
+   id SERIAL,
    last_name VARCHAR(50) NOT NULL,
    first_name VARCHAR(50) NOT NULL,
    email VARCHAR(100) NOT NULL,
    password VARCHAR(50) NOT NULL,
+   profile_picture TEXT,
    birthdate DATE NOT NULL,
    gender VARCHAR(50) NOT NULL,
    weight NUMERIC(15,2) NOT NULL,
    height INTEGER NOT NULL,
    bmi NUMERIC(15,2) NOT NULL,
    body_fat_pct NUMERIC(15,2) NOT NULL,
-   constraints TEXT,
    physical_activity_level VARCHAR(50) NOT NULL,
    daily_caloric_intake INTEGER NOT NULL,
-   goal TEXT NOT NULL,
-   subscription VARCHAR(50) NOT NULL,
-   date_subscription DATE,
-   PRIMARY KEY(user_id),
+   PRIMARY KEY(id),
    UNIQUE(email)
 );
 
 CREATE TABLE foods(
-   food_id SERIAL,
+   id SERIAL,
    name VARCHAR(100) NOT NULL,
    category VARCHAR(50) NOT NULL,
    calories NUMERIC(15,2) NOT NULL,
@@ -32,26 +29,23 @@ CREATE TABLE foods(
    sugars NUMERIC(15,2) NOT NULL,
    sodium SMALLINT NOT NULL,
    cholestorol SMALLINT NOT NULL,
-   PRIMARY KEY(food_id)
+   PRIMARY KEY(id)
 );
 
 CREATE TABLE exercises(
-   exercise_id SERIAL,
+   id SERIAL,
    name VARCHAR(50) NOT NULL,
-   type VARCHAR(50) NOT NULL,
-   target_muscle TEXT NOT NULL,
-   secondary_muscle TEXT NOT NULL,
-   equipment TEXT NOT NULL,
+   image TEXT,
    difficulty_level VARCHAR(50) NOT NULL,
    instructions TEXT NOT NULL,
-   constraints TEXT,
-   PRIMARY KEY(exercise_id)
+   type VARCHAR(50) NOT NULL,
+   PRIMARY KEY(id)
 );
 
 CREATE TABLE health_metrics(
-   health_metric_id SERIAL,
-   userid VARCHAR(50) NOT NULL,
-   date TIMESTAMP NOT NULL,
+   id SERIAL,
+   user_id VARCHAR(50) NOT NULL,
+   date_ TIMESTAMP NOT NULL,
    start_weight NUMERIC(15,2) NOT NULL,
    current_weight NUMERIC(15,2) NOT NULL,
    avg_bpm NUMERIC(15,2) NOT NULL,
@@ -61,27 +55,193 @@ CREATE TABLE health_metrics(
    sleep_time TIME NOT NULL,
    calories_burned NUMERIC(15,2) NOT NULL,
    active_minute NUMERIC(15,2) NOT NULL,
-   workout_type VARCHAR(50) NOT NULL,
-   PRIMARY KEY(health_metric_id),
+   PRIMARY KEY(id),
    UNIQUE(user_id)
 );
 
+CREATE TABLE constraints(
+   id SERIAL,
+   name VARCHAR(150),
+   description VARCHAR(50),
+   severity VARCHAR(50),
+   PRIMARY KEY(id)
+);
+
+CREATE TABLE goals(
+   id SERIAL,
+   goal VARCHAR(255),
+   PRIMARY KEY(id)
+);
+
+CREATE TABLE subscriptions(
+   id SERIAL,
+   subscription_type VARCHAR(15),
+   PRIMARY KEY(id)
+);
+
+CREATE TABLE muscles(
+   id SERIAL,
+   name VARCHAR(50),
+   PRIMARY KEY(id)
+);
+
+CREATE TABLE equipments(
+   id SERIAL,
+   name VARCHAR(150),
+   PRIMARY KEY(id)
+);
+
 CREATE TABLE consume(
-   user_id INTEGER,
-   food_id INTEGER,
-   id_consume VARCHAR(50) NOT NULL,
-   PRIMARY KEY(user_id, food_id),
-   UNIQUE(id_consume),
-   FOREIGN KEY(userid) REFERENCES User(user_id),
-   FOREIGN KEY(food_id) REFERENCES Food(food_id)
+   id INTEGER,
+   id_1 INTEGER,
+   consume_id VARCHAR(50) NOT NULL,
+   user_id VARCHAR(50) NOT NULL,
+   food_id VARCHAR(50) NOT NULL,
+   PRIMARY KEY(id, id_1),
+   UNIQUE(consume_id),
+   FOREIGN KEY(id) REFERENCES users(id),
+   FOREIGN KEY(id_1) REFERENCES foods(id)
 );
 
 CREATE TABLE practice(
-   user_id INTEGER,
-   exercise_id INTEGER,
-   id_practice VARCHAR(50) NOT NULL,
-   PRIMARY KEY(user_id, exercise_id),
-   UNIQUE(id_practice),
-   FOREIGN KEY(userid) REFERENCES User(user_id),
-   FOREIGN KEY(exercise_id) REFERENCES Exercise(exercise_id)
+   id INTEGER,
+   id_1 INTEGER,
+   practice_id VARCHAR(50) NOT NULL,
+   user_id VARCHAR(50) NOT NULL,
+   exercise_id VARCHAR(50) NOT NULL,
+   practiced_at TIMESTAMP NOT NULL,
+   PRIMARY KEY(id, id_1),
+   UNIQUE(practice_id),
+   FOREIGN KEY(id) REFERENCES users(id),
+   FOREIGN KEY(id_1) REFERENCES exercises(id)
+);
+
+CREATE TABLE has(
+   id INTEGER,
+   id_1 INTEGER,
+   PRIMARY KEY(id, id_1),
+   FOREIGN KEY(id) REFERENCES users(id),
+   FOREIGN KEY(id_1) REFERENCES health_metrics(id)
+);
+
+CREATE TABLE exercise_constraint(
+   id_1 INTEGER,
+   id_2 INTEGER,
+   id VARCHAR(50) NOT NULL,
+   exercise_id VARCHAR(50) NOT NULL,
+   constraint_id VARCHAR(50) NOT NULL,
+   PRIMARY KEY(id_1, id_2),
+   UNIQUE(id),
+   FOREIGN KEY(id_1) REFERENCES exercises(id),
+   FOREIGN KEY(id_2) REFERENCES constraints(id)
+);
+
+CREATE TABLE user_constraint(
+   id_1 INTEGER,
+   id_2 INTEGER,
+   id VARCHAR(50) NOT NULL,
+   user_id VARCHAR(50) NOT NULL,
+   constraint_id VARCHAR(50) NOT NULL,
+   PRIMARY KEY(id_1, id_2),
+   UNIQUE(id),
+   FOREIGN KEY(id_1) REFERENCES users(id),
+   FOREIGN KEY(id_2) REFERENCES constraints(id)
+);
+
+CREATE TABLE user_goal(
+   id_1 INTEGER,
+   id_2 INTEGER,
+   id VARCHAR(50) NOT NULL,
+   user_id VARCHAR(50) NOT NULL,
+   goal_id VARCHAR(50) NOT NULL,
+   PRIMARY KEY(id_1, id_2),
+   UNIQUE(id),
+   FOREIGN KEY(id_1) REFERENCES users(id),
+   FOREIGN KEY(id_2) REFERENCES goals(id)
+);
+
+CREATE TABLE exercise_goal(
+   id_1 INTEGER,
+   id_2 INTEGER,
+   id VARCHAR(50) NOT NULL,
+   exercise_id VARCHAR(50) NOT NULL,
+   goal_id VARCHAR(50) NOT NULL,
+   PRIMARY KEY(id_1, id_2),
+   UNIQUE(id),
+   FOREIGN KEY(id_1) REFERENCES exercises(id),
+   FOREIGN KEY(id_2) REFERENCES goals(id)
+);
+
+CREATE TABLE user_subscription(
+   id_1 INTEGER,
+   id_2 INTEGER,
+   id VARCHAR(50) NOT NULL,
+   user_id VARCHAR(50) NOT NULL,
+   subscription_id VARCHAR(50) NOT NULL,
+   started_at TIMESTAMP,
+   ended_at TIMESTAMP,
+   PRIMARY KEY(id_1, id_2),
+   UNIQUE(id),
+   FOREIGN KEY(id_1) REFERENCES users(id),
+   FOREIGN KEY(id_2) REFERENCES subscriptions(id)
+);
+
+CREATE TABLE primary_muscle(
+   id_1 INTEGER,
+   id_2 INTEGER,
+   id VARCHAR(50) NOT NULL,
+   exercise_id VARCHAR(50) NOT NULL,
+   muscle_id VARCHAR(50) NOT NULL,
+   PRIMARY KEY(id_1, id_2),
+   UNIQUE(id),
+   FOREIGN KEY(id_1) REFERENCES exercises(id),
+   FOREIGN KEY(id_2) REFERENCES muscles(id)
+);
+
+CREATE TABLE secondary_muscle(
+   id_1 INTEGER,
+   id_2 INTEGER,
+   id VARCHAR(50) NOT NULL,
+   exercise_id VARCHAR(50) NOT NULL,
+   muscle_id VARCHAR(50) NOT NULL,
+   PRIMARY KEY(id_1, id_2),
+   UNIQUE(id),
+   FOREIGN KEY(id_1) REFERENCES exercises(id),
+   FOREIGN KEY(id_2) REFERENCES muscles(id)
+);
+
+CREATE TABLE exercise_equipment(
+   id_1 INTEGER,
+   id_2 INTEGER,
+   id VARCHAR(50) NOT NULL,
+   exercise_id VARCHAR(50) NOT NULL,
+   goal_id VARCHAR(50) NOT NULL,
+   PRIMARY KEY(id_1, id_2),
+   UNIQUE(id),
+   FOREIGN KEY(id_1) REFERENCES exercises(id),
+   FOREIGN KEY(id_2) REFERENCES equipments(id)
+);
+
+CREATE TABLE user_equipment(
+   id_1 INTEGER,
+   id_2 INTEGER,
+   id VARCHAR(50) NOT NULL,
+   user_id VARCHAR(50) NOT NULL,
+   equipment_id VARCHAR(50) NOT NULL,
+   PRIMARY KEY(id_1, id_2),
+   UNIQUE(id),
+   FOREIGN KEY(id_1) REFERENCES users(id),
+   FOREIGN KEY(id_2) REFERENCES equipments(id)
+);
+
+CREATE TABLE food_constraint(
+   id_1 INTEGER,
+   id_2 INTEGER,
+   id VARCHAR(50) NOT NULL,
+   food_id VARCHAR(50) NOT NULL,
+   constraint_id VARCHAR(50) NOT NULL,
+   PRIMARY KEY(id_1, id_2),
+   UNIQUE(id),
+   FOREIGN KEY(id_1) REFERENCES foods(id),
+   FOREIGN KEY(id_2) REFERENCES constraints(id)
 );
