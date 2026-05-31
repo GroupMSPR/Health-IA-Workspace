@@ -185,7 +185,7 @@ Afin d’éviter les conflits avec des services locaux déjà présents sur la m
 |----------|--------------------|--------------------------|-------------|
 | API Backend (Laravel) | `8080` | `80` | Point d'entrée API REST |
 | PostgreSQL Docker | `55432` | `5432` | Évite le conflit avec PostgreSQL local |
-| Frontend Web (React) | `5000` | `5173` | Interface utilisateur |
+| Frontend Web (React) | `5001` | `5173` | Interface utilisateur |
 | API IA (FastAPI) | `4000` | `4000` | Analyse IA des repas |
 | Ollama Server | `11434` | `11434` | Serveur LLM local |
 | Grafana | `3000` | `3000` | Dashboards de monitoring |

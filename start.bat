@@ -280,7 +280,7 @@ echo Maintenez la touche CTRL appuyee et cliquez sur les liens :
 echo.
 echo - API Laravel      : http://localhost
 echo - BackOffice Admin : http://localhost/admin
-echo - Frontend React   : http://localhost:5000
+echo - Frontend React   : http://localhost:5001
 echo - API Doc Swagger  : http://localhost/api/documentation
 echo - Grafana          : http://localhost:3000
 echo - API IA (FastAPI) : http://localhost:4000/docs
