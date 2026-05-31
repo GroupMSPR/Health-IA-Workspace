@@ -114,7 +114,7 @@ set RETRY_COUNT=0
 set MAX_RETRIES=30
 :wait_postgres
 set /a RETRY_COUNT+=1
-docker compose exec -T pgsql pg_isready -U sail >nul 2>&1
+docker compose exec -T healthai_pgsql pg_isready -U sail >nul 2>&1
 if errorlevel 1 (
 	if !RETRY_COUNT! geq !MAX_RETRIES! (
 		set ERROR_MESSAGE=PostgreSQL n'a pas demarre apres 30 tentatives.
@@ -132,7 +132,7 @@ set RETRY_COUNT=0
 set MAX_RETRIES=15
 :wait_laravel
 set /a RETRY_COUNT+=1
-docker compose exec -T laravel php -r "echo 'ok';" >nul 2>&1
+docker compose exec -T healthai_laravel php -r "echo 'ok';" >nul 2>&1
 if errorlevel 1 (
 	if !RETRY_COUNT! geq !MAX_RETRIES! (
 		set ERROR_MESSAGE=Le conteneur Laravel n'a pas demarre apres 15 tentatives.
@@ -146,12 +146,12 @@ echo [OK] Laravel est pret.
 
 echo.
 echo Verification des identifiants PostgreSQL Sail...
-docker compose exec -T pgsql sh -lc "PGPASSWORD=%DB_PASSWORD% psql -U sail -d laravel -tAc 'select 1' > /dev/null 2>&1"
+docker compose exec -T healthai_pgsql sh -lc "PGPASSWORD=%DB_PASSWORD% psql -U sail -d laravel -tAc 'select 1' > /dev/null 2>&1"
 if not errorlevel 1 goto migrate_db
 
 echo Le cluster PostgreSQL a ete initialise avec d'anciens identifiants.
 echo Reparation du role sail et de la base laravel...
-docker compose exec -T pgsql sh -lc "PGPASSWORD=%DB_PASSWORD% psql -U postgres -d postgres -f -" < docker\repair-postgres.sql
+docker compose exec -T healthai_pgsql sh -lc "PGPASSWORD=%DB_PASSWORD% psql -U postgres -d postgres -f -" < docker\repair-postgres.sql
 if errorlevel 1 (
 	set ERROR_MESSAGE=Reparation du cluster PostgreSQL a echoue.
 	popd
@@ -165,7 +165,7 @@ echo Migration de la base de donnees (creation des tables)...
 
 if !FRESH_MODE! equ 1 (
 	echo [FRESH] Reset complet de la base de donnees...
-	docker compose exec -T laravel php artisan migrate:fresh --force --seed
+	docker compose exec -T healthai_laravel php artisan migrate:fresh --force --seed
 	if errorlevel 1 (
 		set ERROR_MESSAGE=migrate:fresh --seed a echoue.
 		popd
@@ -175,13 +175,13 @@ if !FRESH_MODE! equ 1 (
 	goto after_seed
 )
 
-docker compose exec -T laravel php artisan migrate --force
+docker compose exec -T healthai_laravel php artisan migrate --force
 if errorlevel 1 (
 	set ERROR_MESSAGE=Les migrations Laravel ont echoue.
 	popd
 	goto error_handler
 )
-docker compose exec -T laravel php artisan db:seed --force >nul 2>&1
+docker compose exec -T healthai_laravel php artisan db:seed --force >nul 2>&1
 echo [OK] Migrations et verifications terminees.
 :after_seed
 
@@ -190,10 +190,10 @@ echo Generation Key / Optimisation du cache Laravel...
 for /f "tokens=*" %%a in ('findstr "^APP_KEY=" .env') do set CURRENT_APP_KEY=%%a
 if "!CURRENT_APP_KEY!"=="APP_KEY=" (
     echo [INIT] Generation de la cle Laravel manquante...
-    docker compose exec -T laravel php artisan key:generate >nul 2>&1
+    docker compose exec -T healthai_laravel php artisan key:generate >nul 2>&1
 )
-docker compose exec -T laravel php artisan optimize >nul 2>&1
-docker compose exec -T laravel php artisan filament:optimize >nul 2>&1
+docker compose exec -T healthai_laravel php artisan optimize >nul 2>&1
+docker compose exec -T healthai_laravel php artisan filament:optimize >nul 2>&1
 echo [OK] Cache Laravel et Filament optimises.
 popd
 
