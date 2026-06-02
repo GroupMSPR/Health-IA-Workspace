@@ -166,8 +166,7 @@ Le script :
 - démarre PostgreSQL
 - attend que PostgreSQL soit prêt
 - répare automatiquement les anciens clusters incompatibles
-- exécute les migrations Laravel
-- exécute les seeders Laravel
+- exécute les migrations et seeders Laravel
 - génère la clé back & optimize Laravel
 - démarre le Front React
 - démarre l'ETL & Grafana
