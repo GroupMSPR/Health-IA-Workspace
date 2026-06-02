@@ -117,7 +117,7 @@ if [ ! -f "vendor/autoload.php" ]; then
     docker run --rm -v "$(pwd):/app" composer install --ignore-platform-reqs
 fi
 
-if ! docker compose up -d --wait; then
+if ! docker compose up -d; then
     ERROR_MESSAGE="Lancement du conteneur Laravel/PostgreSQL a echoue."
     error_handler
 fi
