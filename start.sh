@@ -10,9 +10,10 @@ echo -e "${CYAN}========================================================${NC}"
 echo -e "${CYAN}      Demarrage du projet HealthAI Coach (MSPR)${NC}"
 echo -e "${CYAN}========================================================${NC}"
 
-WWWUSER=1000
-WWWGROUP=1000
-DB_PASSWORD="password"
+export WWWUSER=1000
+export WWWGROUP=1000
+export DB_PASSWORD="password"
+
 AUTO_MODE=0
 FRESH_MODE=0
 ERROR_MESSAGE=""
