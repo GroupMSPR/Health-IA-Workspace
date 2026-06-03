@@ -6,6 +6,23 @@ CYAN='\033[0;36m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+init_sticky_bar() {
+    TERM_LINES=$(tput lines)
+    SCROLL_LIMIT=$((TERM_LINES - 3))
+    tput csr 0 $SCROLL_LIMIT
+}
+
+cleanup() {
+    TERM_LINES=$(tput lines)
+    tput csr 0 $((TERM_LINES - 1))
+    echo -e "${NC}"
+}
+
+trap cleanup EXIT INT TERM
+trap init_sticky_bar WINCH
+
+init_sticky_bar
+
 show_progress() {
     local current=$1
     local total=$2
@@ -19,7 +36,11 @@ show_progress() {
     local bar_filled=$(printf "%${filled}s" | tr ' ' '█')
     local bar_empty=$(printf "%${empty}s" | tr ' ' '░')
 
-    echo -e "\n${CYAN}[${bar_filled}${YELLOW}${bar_empty}${CYAN}] ${GREEN}${percent}% ${NC}- ${message}"
+    tput sc
+    tput cup $((TERM_LINES - 2)) 0
+    tput el
+    echo -ne "${CYAN}[${bar_filled}${YELLOW}${bar_empty}${CYAN}] ${GREEN}${percent}% ${NC}- ${message}"
+    tput rc
 }
 
 echo -e "${CYAN}========================================================${NC}"
@@ -35,6 +56,7 @@ FRESH_MODE=0
 ERROR_MESSAGE=""
 
 error_handler() {
+    cleanup
     echo -e "\n${RED}========================================================${NC}"
     echo -e "${RED}ERREUR : $ERROR_MESSAGE${NC}"
     echo -e "${RED}========================================================${NC}\n"
@@ -254,6 +276,8 @@ if ! docker exec healthai_ollama ollama list | grep -q "llava"; then
 else
     echo "  -> [OK] Le modele LLaVA est deja present et operationnel."
 fi
+
+cleanup
 
 echo -e "\n${GREEN}========================================================${NC}"
 echo -e "${GREEN}        TOUT EST DEMARRE AVEC SUCCES ! ${NC}"
