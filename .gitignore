@@ -6,3 +6,5 @@ Grafana/
 Datasets/
 
 .env
+
+healthai_install.log
