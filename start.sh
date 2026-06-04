@@ -276,7 +276,7 @@ cleanup
 
 echo -e "\n${GREEN}========================================================${NC}"
 echo -e "${GREEN}        TOUT EST DEMARRE AVEC SUCCES ! ${NC}"
-echo -e "${GREEN}========================================================${NC}\n"
+echo -e "${GREEN}========================================================${NC}"
 
 echo "Maintenez la touche CTRL appuyee et cliquez sur les liens :"
 echo ""
