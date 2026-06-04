@@ -7,35 +7,30 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 LOG_FILE="$(pwd)/healthai_install.log"
-> "$LOG_FILE" # Vide le fichier de log à chaque nouveau lancement
+> "$LOG_FILE"
 
 export WWWUSER=1000
 export WWWGROUP=1000
 export DB_PASSWORD="password"
-export BUILDKIT_PROGRESS=plain # Force Docker à ne pas utiliser d'animations complexes
+export BUILDKIT_PROGRESS=plain
 
 AUTO_MODE=0
 FRESH_MODE=0
 ERROR_MESSAGE=""
 SPIN_PID=""
 
-# ========================================================
-# MOTEUR DU SPINNER & CHECKMARK
-# ========================================================
 cleanup() {
-    # Coupe le spinner s'il tourne encore lors d'un crash (CTRL+C)
     if [ -n "$SPIN_PID" ]; then
         kill $SPIN_PID >/dev/null 2>&1
         wait $SPIN_PID 2>/dev/null
     fi
-    tput cnorm # Réaffiche le curseur
+    tput cnorm
 }
 trap cleanup EXIT INT TERM
 
 start_task() {
     local msg=$1
-    tput civis # Cache le curseur pour éviter le clignotement
-    # Boucle du spinner en arrière-plan
+    tput civis
     while true; do
         for spinstr in '⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏'; do
             printf "\r\033[2K${CYAN}[%s]${NC} %s" "$spinstr" "$msg"
@@ -71,7 +66,6 @@ error_handler() {
     fi
     exit 1
 }
-# ========================================================
 
 cd "$(dirname "$0")" || exit 1
 
@@ -83,7 +77,7 @@ done
 clear
 echo -e "${CYAN}========================================================${NC}"
 echo -e "${CYAN}      Demarrage du projet HealthAI Coach (MSPR)${NC}"
-echo -e "${CYAN}========================================================${NC}"
+echo -e "${CYAN}========================================================${NC}\n"
 echo -e "${CYAN}ℹ️  Mode silencieux activé. Les logs d'installation sont ecrits dans :${NC}"
 echo -e "${CYAN}   -> ${YELLOW}$LOG_FILE${NC}\n"
 
