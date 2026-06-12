@@ -144,6 +144,16 @@ if [ ! -f "vendor/autoload.php" ]; then
     docker run --rm -v "$(pwd):/app" composer install --ignore-platform-reqs >> "$LOG_FILE" 2>&1
 fi
 
+mkdir -p storage/framework/{sessions,views,cache}
+mkdir -p bootstrap/cache
+chmod -R 777 storage bootstrap/cache
+
+if [ "$FRESH_MODE" -eq 1 ]; then
+    docker compose down -v --remove-orphans >> "$LOG_FILE" 2>&1
+else
+    docker compose down --remove-orphans >> "$LOG_FILE" 2>&1
+fi
+
 if ! docker compose up -d >> "$LOG_FILE" 2>&1; then
     ERROR_MESSAGE="Lancement du conteneur Laravel/PostgreSQL a echoue."
     end_task "[6/10] Configuration et Lancement de l'API Laravel" 1
@@ -212,7 +222,13 @@ pushd "Frontend" > /dev/null || exit
 if [ ! -f ".env" ] && [ -f ".env.example" ]; then
     cp .env.example .env
 fi
-if ! docker compose up -d --build >> "$LOG_FILE" 2>&1; then
+if [ "$FRESH_MODE" -eq 1 ]; then
+    docker compose down -v --remove-orphans >> "$LOG_FILE" 2>&1
+else
+    docker compose down --remove-orphans >> "$LOG_FILE" 2>&1
+fi
+
+if ! docker compose up -d >> "$LOG_FILE" 2>&1; then
     ERROR_MESSAGE="Lancement du conteneur Frontend React a echoue."
     end_task "[7/10] Lancement du Frontend (React SPA)" 1
     error_handler
@@ -226,7 +242,13 @@ pushd "ETL" > /dev/null || exit
 if [ ! -f ".env" ] && [ -f ".env.example" ]; then
     cp .env.example .env
 fi
-if ! docker compose up -d --build >> "$LOG_FILE" 2>&1; then
+if [ "$FRESH_MODE" -eq 1 ]; then
+    docker compose down -v --remove-orphans >> "$LOG_FILE" 2>&1
+else
+    docker compose down --remove-orphans >> "$LOG_FILE" 2>&1
+fi
+
+if ! docker compose up -d >> "$LOG_FILE" 2>&1; then
     ERROR_MESSAGE="Lancement des conteneurs ETL/Grafana a echoue."
     end_task "[8/10] Lancement de l'ETL (Python) et de Grafana" 1
     error_handler
@@ -240,7 +262,13 @@ pushd "API-Ollama" > /dev/null || exit
 if [ ! -f ".env" ] && [ -f ".env.example" ]; then
     cp .env.example .env
 fi
-if ! docker compose up -d --build >> "$LOG_FILE" 2>&1; then
+if [ "$FRESH_MODE" -eq 1 ]; then
+    docker compose down -v --remove-orphans >> "$LOG_FILE" 2>&1
+else
+    docker compose down --remove-orphans >> "$LOG_FILE" 2>&1
+fi
+
+if ! docker compose up -d >> "$LOG_FILE" 2>&1; then
     ERROR_MESSAGE="Lancement du conteneur API IA a echoue."
     end_task "[9/10] Lancement de l'API IA (FastAPI)" 1
     error_handler
