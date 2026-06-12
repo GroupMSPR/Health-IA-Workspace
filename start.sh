@@ -141,7 +141,7 @@ if [ ! -f ".env" ]; then
 fi
 
 if [ ! -f "vendor/autoload.php" ]; then
-    docker run --rm -v "$(pwd):/app" composer install --ignore-platform-reqs >> "$LOG_FILE" 2>&1
+    docker run --rm --user $WWWUSER:$WWWGROUP -v "$(pwd):/app" composer install --ignore-platform-reqs >> "$LOG_FILE" 2>&1
 fi
 
 mkdir -p storage/framework/{sessions,views,cache}
