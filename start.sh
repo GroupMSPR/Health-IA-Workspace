@@ -144,9 +144,13 @@ if [ ! -f "vendor/autoload.php" ]; then
     docker run --rm --user $WWWUSER:$WWWGROUP -v "$(pwd):/app" composer install --ignore-platform-reqs >> "$LOG_FILE" 2>&1
 fi
 
-mkdir -p storage/framework/{sessions,views,cache}
-mkdir -p bootstrap/cache
-chmod -R 777 storage bootstrap/cache
+docker run --rm -v "$(pwd):/app" alpine sh -c "
+    mkdir -p /app/storage/framework/sessions \
+             /app/storage/framework/views \
+             /app/storage/framework/cache \
+             /app/bootstrap/cache && \
+    chmod -R 777 /app/storage /app/bootstrap/cache
+" >> "$LOG_FILE" 2>&1
 
 if [ "$FRESH_MODE" -eq 1 ]; then
     docker compose down -v --remove-orphans >> "$LOG_FILE" 2>&1
