@@ -97,16 +97,22 @@ graph TD
     %% Couche Applicative
     Front("💻 Frontend Web (React)")
     Back("⚙️ Backend API (Laravel)")
-    IA("🧠 API IA (FastAPI + LLaVA)")
+    IA("🧠 API IA (FastAPI - LLaVA & Random Forest)")
 
     %% Couche Data
     ETL("📥 Pipeline ETL (Python)")
     DB("🗄️ PostgreSQL Database")
+    MongoDB("🍃 MongoDB NoSQL")
     Grafana("📊 Dashboards (Grafana)")
+
+    %% Couche IA
+    Ollama("🌋 Model LlaVa 7b")
 
     %% Flux Applicatifs (Le Backend au centre)
     Front <-->|"Requêtes et Réponses (REST)"| Back
     Back <-->|"Envoi d'image et Retour de l'IA"| IA
+    IA <-->|"Stockage Recommendations Exercices"| MongoDB
+    IA <-->|"Analyse d'image Food"| Ollama
     
     %% Flux de Données (La DB au centre)
     Back <-->|"Lecture et Écriture SQL"| DB
