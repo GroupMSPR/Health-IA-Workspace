@@ -157,19 +157,13 @@ Health-IA-Workspace
 
 2. Lancez le script d'initialisation :
 
-- Windows :
-```bash
-start.bat
-```
-
-- Linux / WSL2 :
 ```bash
 start.sh
 ```
 
 ---
 
-## Ce que fait automatiquement `start.bat` & `start.sh`
+## Ce que fait automatiquement `start.sh`
 
 Le script :
 
@@ -228,7 +222,7 @@ docker compose down
 Pour relancer proprement toute la plateforme :
 
 ```bash
-start.bat
+start.sh
 ```
 
 ---
@@ -266,7 +260,7 @@ docker ps
 
 ### B) Ancien cluster PostgreSQL incompatible
 
-Le script `start.bat` / `start.sh` tente automatiquement une réparation via :
+Le script `start.sh` tente automatiquement une réparation via :
 
 ```text
 HealthAI-Coach/docker/repair-postgres.sql
@@ -328,7 +322,7 @@ Avant de valider votre environnement :
 - [ ] Docker Desktop est actif
 - [ ] Docker possède suffisamment de RAM pour Ollama
 - [ ] Tous les fichiers `.env` ont été créés depuis `.env.example`
-- [ ] `start.bat` / `start.sh` s’exécute sans erreur bloquante
+- [ ] `start.sh` s’exécute sans erreur bloquante
 - [ ] Laravel répond correctement
 - [ ] Le modèle `llava` est installé dans Ollama
 

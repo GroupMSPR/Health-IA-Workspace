@@ -13,14 +13,17 @@ CREATE TABLE users(
    body_fat_pct NUMERIC(15,2) NOT NULL,
    physical_activity_level VARCHAR(50) NOT NULL,
    daily_caloric_intake INTEGER NOT NULL,
+   favorite_exercise_category VARCHAR(150),
    PRIMARY KEY(id),
    UNIQUE(email)
 );
 
 CREATE TABLE foods(
    id SERIAL,
+   user_id VARCHAR(50),
    name VARCHAR(100) NOT NULL,
    category VARCHAR(50) NOT NULL,
+   image VARCHAR(500),
    calories NUMERIC(15,2) NOT NULL,
    protein NUMERIC(15,2) NOT NULL,
    carbohydrates NUMERIC(15,2) NOT NULL,
@@ -35,10 +38,21 @@ CREATE TABLE foods(
 CREATE TABLE exercises(
    id SERIAL,
    name VARCHAR(50) NOT NULL,
-   image TEXT,
-   difficulty_level VARCHAR(50) NOT NULL,
    instructions TEXT NOT NULL,
-   type VARCHAR(50) NOT NULL,
+   short_description VARCHAR(300) NOT NULL,
+   category VARCHAR(100) NOT NULL,
+   sub_category VARCHAR(150) NOT NULL,
+   image VARCHAR(500),
+   difficulty_level VARCHAR(50) NOT NULL,
+   rep_range_min INTEGER NOT NULL,
+   rep_range_max INTEGER NOT NULL,
+   recommended_duration_seconds INTEGER NOT NULL,
+   recommended_rest_seconds INTEGER NOT NULL,
+   estimated_calories_per_minute INTEGER NOT NULL,
+   range_of_motion INTEGER NOT NULL,
+   injury_risk_level INTEGER NOT NULL,
+   next_progression_exercise VARCHAR(50),
+   previous_progression_exercise VARCHAR(50),
    PRIMARY KEY(id)
 );
 
@@ -97,6 +111,7 @@ CREATE TABLE consume(
    consume_id VARCHAR(50) NOT NULL,
    user_id VARCHAR(50) NOT NULL,
    food_id VARCHAR(50) NOT NULL,
+   is_liked BOOLEAN,
    PRIMARY KEY(id, id_1),
    UNIQUE(consume_id),
    FOREIGN KEY(id) REFERENCES users(id),
@@ -110,6 +125,7 @@ CREATE TABLE practice(
    user_id VARCHAR(50) NOT NULL,
    exercise_id VARCHAR(50) NOT NULL,
    practiced_at TIMESTAMP NOT NULL,
+   is_liked BOOLEAN,
    PRIMARY KEY(id, id_1),
    UNIQUE(practice_id),
    FOREIGN KEY(id) REFERENCES users(id),
