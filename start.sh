@@ -209,6 +209,13 @@ if [ "$FRESH_MODE" -eq 1 ]; then
         end_task "[7/12] Configuration et Lancement du Backend (Laravel/PostgreSQL/MailCatcher)" 1
         error_handler
     fi
+    if [ -f "docker/healthia_dump_pg.sql" ]; then
+        if ! docker compose exec -T healthai_pgsql sh -c "PGPASSWORD=$DB_PASSWORD psql -U sail -d laravel" < docker/healthia_dump_pg.sql >> "$LOG_FILE" 2>&1; then
+            ERROR_MESSAGE="Dump PostgreSQL a echoue."
+            end_task "[7/12] Configuration et Lancement du Backend (Laravel/PostgreSQL/MailCatcher)" 1
+            error_handler
+        fi
+    fi
 else
     if ! docker compose exec -T healthai_laravel php artisan migrate --force >> "$LOG_FILE" 2>&1; then
         ERROR_MESSAGE="Les migrations Laravel ont echoue."
@@ -216,6 +223,13 @@ else
         error_handler
     fi
     docker compose exec -T healthai_laravel php artisan db:seed --force >> "$LOG_FILE" 2>&1
+    if [ -f "docker/healthia_dump_pg.sql" ]; then
+        if ! docker compose exec -T healthai_pgsql sh -c "PGPASSWORD=$DB_PASSWORD psql -U sail -d laravel" < docker/healthia_dump_pg.sql >> "$LOG_FILE" 2>&1; then
+            ERROR_MESSAGE="Dump PostgreSQL a echoue."
+            end_task "[7/12] Configuration et Lancement du Backend (Laravel/PostgreSQL/MailCatcher)" 1
+            error_handler
+        fi
+    fi
 fi
 
 if grep -q "^APP_KEY=$" .env; then
