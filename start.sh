@@ -19,11 +19,6 @@ export MONGO_ROOT_PASSWORD="example"
 export BUILDKIT_PROGRESS=plain
 export DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1521067317923025046/KlSUxUppbi6AqX_HmZ8GOP5a3pPPIrxZyJqi1HekWWDrXcOA6HTurChC6Uu3mkjetjQX"
 
-# Monitoring – charge le .env si present
-if [ -f "Monitoring/.env" ]; then
-    set -a; source "Monitoring/.env"; set +a
-fi
-
 AUTO_MODE=0
 FRESH_MODE=0
 ERROR_MESSAGE=""
@@ -347,7 +342,6 @@ else
     end_task "[9/13] Verification du modele LLaVA (Deja present)" 0
 fi
 
-<<<<<<< HEAD
 # =============================================================================
 #  [10/13] Profil MONITORING
 #  ETL + Grafana + Prometheus + Alertmanager + Discord Bridge
@@ -361,34 +355,6 @@ if ! docker compose --profile monitoring up -d >> "$LOG_FILE" 2>&1; then
     error_handler
 fi
 end_task "[10/13] Lancement Profil MONITORING (10 conteneurs)" 0
-=======
-# ---------------------------------------------------------
-start_task "[13/14] Lancement du stack Monitoring (Prometheus, Alertmanager, exporters)"
-pushd "Monitoring" > /dev/null || exit
-
-if [ ! -f ".env" ] && [ -f ".env.example" ]; then
-    cp .env.example .env
-    echo -e "\n${YELLOW}  [!] Monitoring/.env créé depuis l'exemple.${NC}"
-    echo -e "${YELLOW}      Remplis DISCORD_WEBHOOK_URL pour activer les alertes Discord.${NC}"
-fi
-
-if [ "$FRESH_MODE" -eq 1 ]; then
-    docker compose down -v --remove-orphans >> "$LOG_FILE" 2>&1
-else
-    docker compose down --remove-orphans >> "$LOG_FILE" 2>&1
-fi
-
-if ! docker compose up -d >> "$LOG_FILE" 2>&1; then
-    ERROR_MESSAGE="Lancement du stack Monitoring a echoue."
-    end_task "[13/14] Lancement du stack Monitoring" 1
-    error_handler
-fi
-popd > /dev/null || exit
-end_task "[13/14] Lancement du stack Monitoring (Prometheus, Alertmanager, exporters)" 0
-
-# ---------------------------------------------------------
-start_task "[14/14] Mise en place de la sauvegarde automatique (cron)"
->>>>>>> fd8d738 (ajout de grafana, prometheus, monitoring)
 
 # =============================================================================
 #  [11/13] Sauvegarde automatique (cron)
@@ -400,17 +366,10 @@ chmod +x "$WORKSPACE_DIR/restore.sh"
 
 CRON_JOB="0 2 * * * $SCRIPT_ABS --silent >> $WORKSPACE_DIR/backups/backup_cron.log 2>&1"
 if crontab -l 2>/dev/null | grep -qF "$SCRIPT_ABS"; then
-<<<<<<< HEAD
     end_task "[11/13] Sauvegarde automatique deja configuree" 0
 else
     (crontab -l 2>/dev/null; echo "# HealthAI Coach - backup quotidien 2h00"; echo "$CRON_JOB") | crontab -
     end_task "[11/13] Sauvegarde automatique configuree (tous les jours a 2h00)" 0
-=======
-    end_task "[14/14] Sauvegarde automatique déjà configurée" 0
-else
-    (crontab -l 2>/dev/null; echo "# HealthAI Coach – backup quotidien"; echo "$CRON_JOB") | crontab -
-    end_task "[14/14] Sauvegarde automatique configurée (tous les jours à 2h00)" 0
->>>>>>> fd8d738 (ajout de grafana, prometheus, monitoring)
 fi
 
 # =============================================================================
@@ -457,8 +416,6 @@ echo " - Frontend React      -> http://localhost:5001"
 echo " - Mobile React Native -> http://localhost:6000"
 echo " - API Doc Swagger     -> http://localhost/api/documentation"
 echo " - Grafana             -> http://localhost:3000"
-echo " - Prometheus          -> http://localhost:9090"
-echo " - Alertmanager        -> http://localhost:9093"
 echo " - API IA (FastAPI)    -> http://localhost:4000/docs"
 echo " - Ollama              -> http://localhost:11434"
 echo " - Prometheus          -> http://localhost:9090"
