@@ -1,9 +1,10 @@
-Backend/
-Frontend/
-Mobile/
 API-Ollama/
+Backend/
+backups/
 ETL/
+Frontend/
 Grafana/
+Mobile/
 Datasets/
 
 .env

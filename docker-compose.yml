@@ -1,0 +1,280 @@
+# =============================================================================
+#  docker-compose.yml — Health-IA-Workspace (MSPR 3 HealthAI Coach)
+#  Fichier unifié avec 3 profils Docker Compose
+#
+#  USAGE :
+#    Tout démarrer (recommandé via start.sh) :
+#      docker compose --profile backend --profile ia --profile monitoring up -d
+#
+#    Profil backend uniquement (Laravel + PostgreSQL + MailCatcher) :
+#      docker compose --profile backend up -d
+#
+#    Profil IA uniquement (FastAPI + Ollama + MongoDB) :
+#      docker compose --profile ia up -d
+#
+#    Profil monitoring uniquement (Grafana + ETL) :
+#      docker compose --profile monitoring up -d
+#
+#    Frontend + Mobile (pas de profil = toujours démarrés) :
+#      docker compose up -d
+#
+#  PROFILS :
+#    - backend    : API Laravel, PostgreSQL, MailCatcher
+#    - ia         : FastAPI, Ollama (LLaVA), MongoDB
+#    - monitoring : Grafana, ETL Python
+#
+#  Pré-requis : cloner les repos dans les sous-dossiers via start.sh
+#    Backend/   Frontend/   Mobile/   API-Ollama/   ETL/   Grafana/
+# =============================================================================
+
+name: healthai
+
+networks:
+  healthai_network:
+    driver: bridge
+
+volumes:
+  pgsql_data:
+  mongodb_data:
+  ollama_models:
+  grafana_data:
+
+# =============================================================================
+#  PROFIL : backend
+#  Services : Laravel (app), PostgreSQL, MailCatcher
+# =============================================================================
+services:
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 15
+  # ---------------------------------------------------------------------------
+  healthai_pgsql:
+    image: postgres:15-alpine
+    container_name: healthai_pgsql-1
+    profiles: ["backend"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: laravel
+      POSTGRES_USER: sail
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+    volumes:
+      - pgsql_data:/var/lib/postgresql/data
+      - ./Backend/docker/repair-postgres.sql:/docker-entrypoint-initdb.d/repair.sql:ro
+    ports:
+      - "55432:5432"
+    networks:
+      - healthai_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sail -d laravel"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # ---------------------------------------------------------------------------
+  # MailCatcher (SMTP dev)
+  # ---------------------------------------------------------------------------
+  healthai_mailcatcher:
+    image: schickling/mailcatcher
+    container_name: healthai_mailcatcher-1
+    profiles: ["backend"]
+    restart: unless-stopped
+    ports:
+      - "1025:1025"   # SMTP
+      - "1080:1080"   # Interface web
+    networks:
+      - healthai_network
+
+  # ---------------------------------------------------------------------------
+  # Laravel 12 (PHP 8.4)
+  # ---------------------------------------------------------------------------
+  healthai_laravel:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: healthai_laravel-1
+    profiles: ["backend"]
+    restart: unless-stopped
+    depends_on:
+      healthai_pgsql:
+        condition: service_healthy
+      healthai_mailcatcher:
+        condition: service_started
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      DB_CONNECTION: pgsql
+      DB_HOST: healthai_pgsql
+      DB_PORT: 5432
+      DB_DATABASE: laravel
+      DB_USERNAME: sail
+      DB_PASSWORD: ${DB_PASSWORD:-password}
+      MAIL_MAILER: smtp
+      MAIL_HOST: healthai_mailcatcher
+      MAIL_PORT: 1025
+      WWWUSER: ${WWWUSER:-1000}
+      WWWGROUP: ${WWWGROUP:-1000}
+    volumes:
+      - ./Backend:/var/www/html
+    ports:
+      - "80:80"
+      - "5173:5173"
+    networks:
+      - healthai_network
+
+# =============================================================================
+#  PROFIL : ia
+#  Services : FastAPI, Ollama (LLaVA), MongoDB
+# =============================================================================
+
+  # ---------------------------------------------------------------------------
+  # MongoDB (stockage résultats scans IA)
+  # ---------------------------------------------------------------------------
+  healthai_mongodb:
+    image: mongo:latest
+    container_name: healthai_mongodb
+    profiles: ["ia"]
+    restart: unless-stopped
+    volumes:
+      - mongodb_data:/data/db
+    ports:
+      - "27017:27017"
+    networks:
+      - healthai_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ---------------------------------------------------------------------------
+  # Ollama (modèle LLaVA — scan alimentaire local)
+  # ---------------------------------------------------------------------------
+  healthai_ollama:
+    image: ollama/ollama:latest
+    container_name: healthai_ollama
+    profiles: ["ia"]
+    restart: unless-stopped
+    volumes:
+      - ollama_models:/root/.ollama
+    ports:
+      - "11434:11434"
+    networks:
+      - healthai_network
+
+  # ---------------------------------------------------------------------------
+  # FastAPI (API IA — recommandations exercices + scan aliments)
+  # ---------------------------------------------------------------------------
+  healthai_fastapi:
+    build:
+      context: ./API-Ollama
+      dockerfile: Dockerfile
+    container_name: healthai_fastapi
+    profiles: ["ia"]
+    restart: unless-stopped
+    depends_on:
+      healthai_mongodb:
+        condition: service_healthy
+      healthai_ollama:
+        condition: service_started
+    environment:
+      MONGODB_URI: mongodb://healthai_mongodb:27017
+      OLLAMA_HOST: http://healthai_ollama:11434
+    volumes:
+      - ./API-Ollama:/app
+    ports:
+      - "4000:4000"
+    networks:
+      - healthai_network
+
+# =============================================================================
+#  PROFIL : monitoring
+#  Services : ETL Python, Grafana
+# =============================================================================
+
+  # ---------------------------------------------------------------------------
+  # ETL Python (pipeline données → PostgreSQL)
+  # ---------------------------------------------------------------------------
+  healthai_etl:
+    build:
+      context: ./ETL
+      dockerfile: Dockerfile
+    container_name: healthai_etl
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    environment:
+      DB_HOST: healthai_pgsql
+      DB_PORT: 5432
+      DB_NAME: laravel
+      DB_USER: sail
+      DB_PASSWORD: ${DB_PASSWORD:-password}
+    volumes:
+      - ./ETL:/app
+    networks:
+      - healthai_network
+
+  # ---------------------------------------------------------------------------
+  # Grafana (dashboards supervision)
+  # ---------------------------------------------------------------------------
+  healthai_grafana:
+    image: grafana/grafana:latest
+    container_name: healthai_grafana
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    depends_on:
+      - healthai_etl
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./Grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./Grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - healthai_network
+
+# =============================================================================
+#  PAS DE PROFIL → Frontend et Mobile démarrent toujours
+# =============================================================================
+
+  # ---------------------------------------------------------------------------
+  # Frontend React 19 + Vite (dev)
+  # ---------------------------------------------------------------------------
+  healthai_frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    container_name: healthai_frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://localhost
+    volumes:
+      - ./Frontend:/app
+      - /app/node_modules
+    ports:
+      - "5001:5173"
+    networks:
+      - healthai_network
+
+  # ---------------------------------------------------------------------------
+  # Mobile React Native + Expo SDK 56 (dev)
+  # ---------------------------------------------------------------------------
+  healthai_mobile:
+    build:
+      context: ./Mobile
+      dockerfile: Dockerfile
+    container_name: healthai_mobile
+    restart: unless-stopped
+    environment:
+      EXPO_DEVTOOLS_LISTEN_ADDRESS: 0.0.0.0
+    volumes:
+      - ./Mobile:/app
+      - /app/node_modules
+    ports:
+      - "6000:8081"   # Metro bundler
+      - "19000:19000" # Expo Go
+      - "19001:19001" # Expo DevTools
+    networks:
+      - healthai_network

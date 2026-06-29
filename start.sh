@@ -19,6 +19,9 @@ FRESH_MODE=0
 ERROR_MESSAGE=""
 SPIN_PID=""
 
+# =============================================================================
+#  Helpers
+# =============================================================================
 cleanup() {
     if [ -n "$SPIN_PID" ]; then
         kill $SPIN_PID >/dev/null 2>&1
@@ -67,7 +70,11 @@ error_handler() {
     exit 1
 }
 
+# =============================================================================
+#  Init
+# =============================================================================
 cd "$(dirname "$0")" || exit 1
+WORKSPACE_DIR="$(pwd)"
 
 for arg in "$@"; do
     if [ "$arg" == "--auto" ]; then AUTO_MODE=1; fi
@@ -81,77 +88,62 @@ echo -e "${CYAN}========================================================${NC}\n"
 echo -e "${CYAN}ℹ️  Mode silencieux activé. Les logs d'installation sont ecrits dans :${NC}"
 echo -e "${CYAN}   -> ${YELLOW}$LOG_FILE${NC}\n"
 
-# ---------------------------------------------------------
-start_task "[0/13] Verification de l'environnement Docker"
+# =============================================================================
+#  [0] Vérification Docker
+# =============================================================================
+start_task "[0/11] Verification de l'environnement Docker"
 if ! docker --version >> "$LOG_FILE" 2>&1; then
     ERROR_MESSAGE="Docker n'est pas installe ou non accessible."
-    end_task "[0/13] Verification de l'environnement Docker" 1
+    end_task "[0/11] Verification de l'environnement Docker" 1
     error_handler
 fi
 if ! docker compose version >> "$LOG_FILE" 2>&1; then
     ERROR_MESSAGE="docker compose n'est pas disponible."
-    end_task "[0/13] Verification de l'environnement Docker" 1
+    end_task "[0/11] Verification de l'environnement Docker" 1
     error_handler
 fi
-end_task "[0/13] Verification de l'environnement Docker" 0
+end_task "[0/11] Verification de l'environnement Docker" 0
 
-# ---------------------------------------------------------
-start_task "[1/13] Clonage API IA (FastAPI)"
-if [ ! -d "API-Ollama" ]; then
-    git clone https://github.com/GroupMSPR/Health-IA-FastAPI.git API-Ollama >> "$LOG_FILE" 2>&1
-fi
-end_task "[1/13] Clonage API IA (FastAPI)" 0
+# =============================================================================
+#  [1] Clonage des repos
+# =============================================================================
+start_task "[1/11] Clonage des repos (Backend, Frontend, Mobile, API-IA, ETL, Grafana)"
+[ ! -d "API-Ollama" ] && git clone https://github.com/GroupMSPR/Health-IA-FastAPI.git API-Ollama >> "$LOG_FILE" 2>&1
+[ ! -d "ETL"        ] && git clone https://github.com/GroupMSPR/Health-IA-ETL.git ETL >> "$LOG_FILE" 2>&1
+[ ! -d "Grafana"    ] && git clone https://github.com/GroupMSPR/Health-IA-Grafana.git Grafana >> "$LOG_FILE" 2>&1
+[ ! -d "Backend"    ] && git clone https://github.com/GroupMSPR/Health-IA-Backend.git Backend >> "$LOG_FILE" 2>&1
+[ ! -d "Frontend"   ] && git clone https://github.com/GroupMSPR/Health-IA-Frontend.git Frontend >> "$LOG_FILE" 2>&1
+[ ! -d "Mobile"     ] && git clone https://github.com/GroupMSPR/Health-IA-Mobile.git Mobile >> "$LOG_FILE" 2>&1
+end_task "[1/11] Clonage des repos" 0
 
-# ---------------------------------------------------------
-start_task "[2/13] Clonage ETL"
-if [ ! -d "ETL" ]; then
-    git clone https://github.com/GroupMSPR/Health-IA-ETL.git ETL >> "$LOG_FILE" 2>&1
-fi
-end_task "[2/13] Clonage ETL" 0
+# =============================================================================
+#  [2] Préparation du Backend Laravel (avant démarrage des conteneurs)
+# =============================================================================
+start_task "[2/11] Preparation du Backend Laravel (env, composer, permissions)"
 
-# ---------------------------------------------------------
-start_task "[3/13] Clonage Grafana"
-if [ ! -d "Grafana" ]; then
-    git clone https://github.com/GroupMSPR/Health-IA-Grafana.git Grafana >> "$LOG_FILE" 2>&1
-fi
-end_task "[3/13] Clonage Grafana" 0
-
-# ---------------------------------------------------------
-start_task "[4/13] Clonage Backend (Laravel)"
-if [ ! -d "Backend" ]; then
-    git clone https://github.com/GroupMSPR/Health-IA-Backend.git Backend >> "$LOG_FILE" 2>&1
-fi
-end_task "[4/13] Clonage Backend (Laravel)" 0
-
-# ---------------------------------------------------------
-start_task "[5/13] Clonage Frontend (React Web)"
-if [ ! -d "Frontend" ]; then
-    git clone https://github.com/GroupMSPR/Health-IA-Frontend.git Frontend >> "$LOG_FILE" 2>&1
-fi
-end_task "[5/13] Clonage Frontend (React Web)" 0
-
-# ---------------------------------------------------------
-start_task "[6/13] Clonage Mobile (React Native)"
-if [ ! -d "Mobile" ]; then
-    git clone https://github.com/GroupMSPR/Health-IA-Mobile.git Mobile >> "$LOG_FILE" 2>&1
-fi
-end_task "[6/13] Clonage Mobile (React Native)" 0
-
-# ---------------------------------------------------------
-start_task "[7/13] Configuration et Lancement du Backend (Laravel/PostgreSQL/MailCatcher)"
-pushd "Backend" > /dev/null || exit
-
-if [ ! -f ".env" ]; then
-    cp .env.example .env
-    sed -i 's/^# DB_/DB_/g' .env
-    sed -i 's/^# FORWARD_DB_PORT/FORWARD_DB_PORT/g' .env
+# Copie .env
+if [ ! -f "Backend/.env" ]; then
+    cp Backend/.env.example Backend/.env
+    sed -i 's/^# DB_/DB_/g' Backend/.env
+    sed -i 's/^# FORWARD_DB_PORT/FORWARD_DB_PORT/g' Backend/.env
 fi
 
-if [ ! -f "vendor/autoload.php" ]; then
-    docker run --rm -u "$(id -u):$(id -g)" -v $(pwd):/app composer install --ignore-platform-reqs >> "$LOG_FILE" 2>&1
+# Copie .env des autres services si .env.example existe
+for SERVICE in Frontend Mobile API-Ollama ETL; do
+    if [ ! -f "$SERVICE/.env" ] && [ -f "$SERVICE/.env.example" ]; then
+        cp "$SERVICE/.env.example" "$SERVICE/.env"
+    fi
+done
+
+# Composer install (si pas encore fait)
+if [ ! -f "Backend/vendor/autoload.php" ]; then
+    docker run --rm -u "$(id -u):$(id -g)" \
+        -v "$(pwd)/Backend":/app \
+        composer install --ignore-platform-reqs >> "$LOG_FILE" 2>&1
 fi
 
-docker run --rm -v "$(pwd):/app" alpine sh -c "
+# Permissions storage Laravel
+docker run --rm -v "$(pwd)/Backend:/app" alpine sh -c "
     mkdir -p /app/storage/framework/sessions \
              /app/storage/framework/views \
              /app/storage/framework/cache \
@@ -159,208 +151,210 @@ docker run --rm -v "$(pwd):/app" alpine sh -c "
     chmod -R 777 /app/storage /app/bootstrap/cache
 " >> "$LOG_FILE" 2>&1
 
-if [ "$FRESH_MODE" -eq 1 ]; then
-    docker compose down -v --remove-orphans >> "$LOG_FILE" 2>&1
-else
-    docker compose down --remove-orphans >> "$LOG_FILE" 2>&1
-fi
+end_task "[2/11] Preparation du Backend Laravel" 0
 
-if ! docker compose up -d >> "$LOG_FILE" 2>&1; then
-    ERROR_MESSAGE="Lancement du conteneur Backend (Laravel/PostgreSQL/MailCatcher) a echoue."
-    end_task "[7/13] Configuration et Lancement du Backend (Laravel/PostgreSQL/MailCatcher)" 1
+# =============================================================================
+#  [3] Arrêt propre des conteneurs existants
+# =============================================================================
+start_task "[3/11] Arret des conteneurs existants"
+if [ "$FRESH_MODE" -eq 1 ]; then
+    docker compose --profile backend --profile ia --profile monitoring \
+        down -v --remove-orphans >> "$LOG_FILE" 2>&1
+else
+    docker compose --profile backend --profile ia --profile monitoring \
+        down --remove-orphans >> "$LOG_FILE" 2>&1
+fi
+end_task "[3/11] Arret des conteneurs existants" 0
+
+# =============================================================================
+#  [4] Démarrage — Profil BACKEND (Laravel + PostgreSQL + MailCatcher)
+# =============================================================================
+start_task "[4/11] Lancement Profil BACKEND (Laravel / PostgreSQL / MailCatcher)"
+
+if ! docker compose --profile backend up -d >> "$LOG_FILE" 2>&1; then
+    ERROR_MESSAGE="Lancement du profil backend a echoue."
+    end_task "[4/11] Lancement Profil BACKEND" 1
     error_handler
 fi
 
-RETRY_COUNT=0
-MAX_RETRIES=30
+# Attente PostgreSQL
+RETRY_COUNT=0; MAX_RETRIES=30
 while ! docker compose exec -T healthai_pgsql pg_isready -U sail >> "$LOG_FILE" 2>&1; do
     ((RETRY_COUNT++))
-    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+    [ $RETRY_COUNT -ge $MAX_RETRIES ] && {
         ERROR_MESSAGE="PostgreSQL n'a pas demarre apres 30 tentatives."
-        end_task "[7/13] Configuration et Lancement du Backend (Laravel/PostgreSQL/MailCatcher)" 1
+        end_task "[4/11] Lancement Profil BACKEND" 1
         error_handler
-    fi
+    }
     sleep 4
 done
 
-RETRY_COUNT=0
-MAX_RETRIES=15
+# Attente Laravel
+RETRY_COUNT=0; MAX_RETRIES=15
 while ! docker compose exec -T healthai_laravel php -r "echo 'ok';" >> "$LOG_FILE" 2>&1; do
     ((RETRY_COUNT++))
-    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
-        ERROR_MESSAGE="Le conteneur Backend (Laravel/PostgreSQL/MailCatcher) n'a pas demarre."
-        end_task "[7/13] Configuration et Lancement du Backend (Laravel/PostgreSQL/MailCatcher)" 1
+    [ $RETRY_COUNT -ge $MAX_RETRIES ] && {
+        ERROR_MESSAGE="Le conteneur Laravel n'a pas demarre."
+        end_task "[4/11] Lancement Profil BACKEND" 1
         error_handler
-    fi
+    }
     sleep 4
 done
 
-if ! docker compose exec -T healthai_pgsql sh -lc "PGPASSWORD=$DB_PASSWORD psql -U sail -d laravel -tAc 'select 1'" >> "$LOG_FILE" 2>&1; then
-    if ! docker compose exec -T healthai_pgsql sh -lc "PGPASSWORD=$DB_PASSWORD psql -U postgres -d postgres -f -" < docker/repair-postgres.sql >> "$LOG_FILE" 2>&1; then
+# Réparation PostgreSQL si nécessaire
+if ! docker compose exec -T healthai_pgsql sh -lc \
+    "PGPASSWORD=$DB_PASSWORD psql -U sail -d laravel -tAc 'select 1'" >> "$LOG_FILE" 2>&1; then
+    docker compose exec -T healthai_pgsql sh -lc \
+        "PGPASSWORD=$DB_PASSWORD psql -U postgres -d postgres -f -" \
+        < Backend/docker/repair-postgres.sql >> "$LOG_FILE" 2>&1 || {
         ERROR_MESSAGE="Reparation du cluster PostgreSQL a echoue."
-        end_task "[7/13] Configuration et Lancement du Backend (Laravel/PostgreSQL/MailCatcher)" 1
+        end_task "[4/11] Lancement Profil BACKEND" 1
         error_handler
-    fi
+    }
 fi
 
+# Migrations
 if [ "$FRESH_MODE" -eq 1 ]; then
-    if ! docker compose exec -T healthai_laravel php artisan migrate:fresh --force --seed >> "$LOG_FILE" 2>&1; then
+    docker compose exec -T healthai_laravel php artisan migrate:fresh --force --seed >> "$LOG_FILE" 2>&1 || {
         ERROR_MESSAGE="migrate:fresh --seed a echoue."
-        end_task "[7/13] Configuration et Lancement du Backend (Laravel/PostgreSQL/MailCatcher)" 1
+        end_task "[4/11] Lancement Profil BACKEND" 1
         error_handler
-    fi
-    if [ -f "docker/healthia_dump_pg.sql" ]; then
-        if ! docker compose exec -T healthai_pgsql sh -c "PGPASSWORD=$DB_PASSWORD psql -U sail -d laravel" < docker/healthia_dump_pg.sql >> "$LOG_FILE" 2>&1; then
-            ERROR_MESSAGE="Dump PostgreSQL a echoue."
-            end_task "[7/13] Configuration et Lancement du Backend (Laravel/PostgreSQL/MailCatcher)" 1
-            error_handler
-        fi
+    }
+    if [ -f "Backend/docker/healthia_dump_pg.sql" ]; then
+        docker compose exec -T healthai_pgsql sh -c \
+            "PGPASSWORD=$DB_PASSWORD psql -U sail -d laravel" \
+            < Backend/docker/healthia_dump_pg.sql >> "$LOG_FILE" 2>&1
     fi
 else
-    if ! docker compose exec -T healthai_laravel php artisan migrate --force >> "$LOG_FILE" 2>&1; then
+    docker compose exec -T healthai_laravel php artisan migrate --force >> "$LOG_FILE" 2>&1 || {
         ERROR_MESSAGE="Les migrations Laravel ont echoue."
-        end_task "[7/13] Configuration et Lancement du Backend (Laravel/PostgreSQL/MailCatcher)" 1
+        end_task "[4/11] Lancement Profil BACKEND" 1
         error_handler
-    fi
+    }
     docker compose exec -T healthai_laravel php artisan db:seed --force >> "$LOG_FILE" 2>&1
-    if [ -f "docker/healthia_dump_pg.sql" ]; then
-        if ! docker compose exec -T healthai_pgsql sh -c "PGPASSWORD=$DB_PASSWORD psql -U sail -d laravel" < docker/healthia_dump_pg.sql >> "$LOG_FILE" 2>&1; then
-            ERROR_MESSAGE="Dump PostgreSQL a echoue."
-            end_task "[7/13] Configuration et Lancement du Backend (Laravel/PostgreSQL/MailCatcher)" 1
-            error_handler
-        fi
+    if [ -f "Backend/docker/healthia_dump_pg.sql" ]; then
+        docker compose exec -T healthai_pgsql sh -c \
+            "PGPASSWORD=$DB_PASSWORD psql -U sail -d laravel" \
+            < Backend/docker/healthia_dump_pg.sql >> "$LOG_FILE" 2>&1
     fi
 fi
 
-if grep -q "^APP_KEY=$" .env; then
+# Clé + optimisations Laravel
+grep -q "^APP_KEY=$" Backend/.env && \
     docker compose exec -T healthai_laravel php artisan key:generate >> "$LOG_FILE" 2>&1
-fi
 docker compose exec -T healthai_laravel php artisan optimize >> "$LOG_FILE" 2>&1
 docker compose exec -T healthai_laravel php artisan filament:optimize >> "$LOG_FILE" 2>&1
 
-popd > /dev/null || exit
-end_task "[7/13] Configuration et Lancement du Backend (Laravel/PostgreSQL/MailCatcher)" 0
+end_task "[4/11] Lancement Profil BACKEND (Laravel / PostgreSQL / MailCatcher)" 0
 
-# ---------------------------------------------------------
-start_task "[8/13] Lancement du Frontend (React Web)"
-pushd "Frontend" > /dev/null || exit
-if [ ! -f ".env" ] && [ -f ".env.example" ]; then
-    cp .env.example .env
-fi
-if [ "$FRESH_MODE" -eq 1 ]; then
-    docker compose down -v --remove-orphans >> "$LOG_FILE" 2>&1
-else
-    docker compose down --remove-orphans >> "$LOG_FILE" 2>&1
-fi
-
-if ! docker compose up -d >> "$LOG_FILE" 2>&1; then
-    ERROR_MESSAGE="Lancement du conteneur Frontend React a echoue."
-    end_task "[8/13] Lancement du Frontend (React Web)" 1
+# =============================================================================
+#  [5] Démarrage — Frontend (pas de profil = toujours démarré)
+# =============================================================================
+start_task "[5/11] Lancement Frontend React"
+if ! docker compose up -d healthai_frontend >> "$LOG_FILE" 2>&1; then
+    ERROR_MESSAGE="Lancement du Frontend React a echoue."
+    end_task "[5/11] Lancement Frontend React" 1
     error_handler
 fi
-popd > /dev/null || exit
-end_task "[8/13] Lancement du Frontend (React Web)" 0
+end_task "[5/11] Lancement Frontend React" 0
 
-# ---------------------------------------------------------
-start_task "[9/13] Lancement du Mobile (React Native)"
-pushd "Mobile" > /dev/null || exit
-if [ ! -f ".env" ] && [ -f ".env.example" ]; then
-    cp .env.example .env
-fi
-if [ "$FRESH_MODE" -eq 1 ]; then
-    docker compose down -v --remove-orphans >> "$LOG_FILE" 2>&1
-else
-    docker compose down --remove-orphans >> "$LOG_FILE" 2>&1
-fi
-
-if ! docker compose up -d >> "$LOG_FILE" 2>&1; then
-    ERROR_MESSAGE="Lancement du conteneur Mobile (React Native) a echoue."
-    end_task "[9/13] Lancement du Mobile (React Native)" 1
+# =============================================================================
+#  [6] Démarrage — Mobile (pas de profil = toujours démarré)
+# =============================================================================
+start_task "[6/11] Lancement Mobile React Native"
+if ! docker compose up -d healthai_mobile >> "$LOG_FILE" 2>&1; then
+    ERROR_MESSAGE="Lancement du Mobile React Native a echoue."
+    end_task "[6/11] Lancement Mobile React Native" 1
     error_handler
 fi
-popd > /dev/null || exit
-end_task "[9/13] Lancement du Mobile (React Native)" 0
+end_task "[6/11] Lancement Mobile React Native" 0
 
-# ---------------------------------------------------------
-start_task "[10/13] Lancement de l'ETL et de Grafana"
-pushd "ETL" > /dev/null || exit
-if [ ! -f ".env" ] && [ -f ".env.example" ]; then
-    cp .env.example .env
-fi
-if [ "$FRESH_MODE" -eq 1 ]; then
-    docker compose down -v --remove-orphans >> "$LOG_FILE" 2>&1
-else
-    docker compose down --remove-orphans >> "$LOG_FILE" 2>&1
-fi
-
-if ! docker compose up -d >> "$LOG_FILE" 2>&1; then
-    ERROR_MESSAGE="Lancement des conteneurs ETL/Grafana a echoue."
-    end_task "[10/13] Lancement de l'ETL et de Grafana" 1
+# =============================================================================
+#  [7] Démarrage — Profil MONITORING (ETL + Grafana)
+# =============================================================================
+start_task "[7/11] Lancement Profil MONITORING (ETL + Grafana)"
+if ! docker compose --profile monitoring up -d >> "$LOG_FILE" 2>&1; then
+    ERROR_MESSAGE="Lancement du profil monitoring (ETL/Grafana) a echoue."
+    end_task "[7/11] Lancement Profil MONITORING" 1
     error_handler
 fi
-popd > /dev/null || exit
-end_task "[10/13] Lancement de l'ETL et de Grafana" 0
+end_task "[7/11] Lancement Profil MONITORING (ETL + Grafana)" 0
 
-# ---------------------------------------------------------
-start_task "[11/13] Lancement de l'API IA (FastAPI, Ollama & MongoDB)"
-pushd "API-Ollama" > /dev/null || exit
-if [ ! -f ".env" ] && [ -f ".env.example" ]; then
-    cp .env.example .env
-fi
-if [ "$FRESH_MODE" -eq 1 ]; then
-    docker compose down -v --remove-orphans >> "$LOG_FILE" 2>&1
-else
-    docker compose down --remove-orphans >> "$LOG_FILE" 2>&1
-fi
-
-if ! docker compose up -d >> "$LOG_FILE" 2>&1; then
-    ERROR_MESSAGE="Lancement du conteneur API IA (FastAPI, Ollama & MongoDB) a echoue."
-    end_task "[11/13] Lancement de l'API IA (FastAPI, Ollama & MongoDB)" 1
+# =============================================================================
+#  [8] Démarrage — Profil IA (FastAPI + Ollama + MongoDB)
+# =============================================================================
+start_task "[8/11] Lancement Profil IA (FastAPI / Ollama / MongoDB)"
+if ! docker compose --profile ia up -d >> "$LOG_FILE" 2>&1; then
+    ERROR_MESSAGE="Lancement du profil IA (FastAPI/Ollama/MongoDB) a echoue."
+    end_task "[8/11] Lancement Profil IA" 1
     error_handler
 fi
-popd > /dev/null || exit
-end_task "[11/13] Lancement de l'API IA (FastAPI, Ollama & MongoDB)" 0
+end_task "[8/11] Lancement Profil IA (FastAPI / Ollama / MongoDB)" 0
 
-# ---------------------------------------------------------
-start_task "[12/13] Verification du modele LLaVA"
+# =============================================================================
+#  [9] Vérification modèle LLaVA
+# =============================================================================
+start_task "[9/11] Verification du modele LLaVA"
 sleep 2
 if ! docker exec healthai_ollama ollama list | grep -q "llava"; then
-    end_task "[12/13] Verification du modele LLaVA (Installation requise)" 0
+    end_task "[9/11] Verification du modele LLaVA (Installation requise)" 0
     echo -e "${YELLOW}  -> Telechargement du modele LLaVA (4.7 Go)... Patientez.${NC}"
     if ! docker exec healthai_ollama ollama pull llava; then
-        echo -e "${RED}  -> [WARN] Le telechargement a echoue. A faire manuellement.${NC}"
+        echo -e "${RED}  -> [WARN] Le telechargement a echoue. A faire manuellement :${NC}"
+        echo -e "${RED}     docker exec healthai_ollama ollama pull llava${NC}"
     else
         echo -e "${GREEN}  -> [✓] Modele LLaVA telecharge avec succes !${NC}"
     fi
 else
-    end_task "[12/13] Verification du modele LLaVA (Deja present)" 0
+    end_task "[9/11] Verification du modele LLaVA (Deja present)" 0
 fi
 
-# ---------------------------------------------------------
-start_task "[13/13] Mise en place de la sauvegarde automatique (cron)"
-
-SCRIPT_ABS="$(cd "$(dirname "$0")" && pwd)/backup.sh"
+# =============================================================================
+#  [10] Sauvegarde automatique (cron)
+# =============================================================================
+start_task "[10/11] Mise en place de la sauvegarde automatique (cron)"
+SCRIPT_ABS="$WORKSPACE_DIR/backup.sh"
 chmod +x "$SCRIPT_ABS"
-chmod +x "$(cd "$(dirname "$0")" && pwd)/restore.sh"
+chmod +x "$WORKSPACE_DIR/restore.sh"
 
-CRON_JOB="0 2 * * * $SCRIPT_ABS --silent >> $(cd "$(dirname "$0")" && pwd)/backups/backup_cron.log 2>&1"
-
+CRON_JOB="0 2 * * * $SCRIPT_ABS --silent >> $WORKSPACE_DIR/backups/backup_cron.log 2>&1"
 if crontab -l 2>/dev/null | grep -qF "$SCRIPT_ABS"; then
-    end_task "[13/13] Sauvegarde automatique déjà configurée" 0
+    end_task "[10/11] Sauvegarde automatique deja configuree" 0
 else
-    (crontab -l 2>/dev/null; echo "# HealthAI Coach – backup quotidien"; echo "$CRON_JOB") | crontab -
-    end_task "[13/13] Sauvegarde automatique configurée (tous les jours à 2h00)" 0
+    (crontab -l 2>/dev/null; echo "# HealthAI Coach - backup quotidien"; echo "$CRON_JOB") | crontab -
+    end_task "[10/11] Sauvegarde automatique configuree (tous les jours a 2h00)" 0
 fi
 
-# ========================================================
+# =============================================================================
+#  [11] Vérification finale des conteneurs
+# =============================================================================
+start_task "[11/11] Verification finale de tous les conteneurs"
+sleep 3
+FAILED_CONTAINERS=$(docker compose --profile backend --profile ia --profile monitoring \
+    ps --filter "status=exited" --format "{{.Name}}" 2>/dev/null)
+if [ -n "$FAILED_CONTAINERS" ]; then
+    echo -e "\n${YELLOW}  -> [WARN] Conteneurs arretes : $FAILED_CONTAINERS${NC}"
+    end_task "[11/11] Verification finale (avec avertissements)" 0
+else
+    end_task "[11/11] Tous les conteneurs sont actifs" 0
+fi
+
+# =============================================================================
+#  Fin
+# =============================================================================
 cleanup
-# ========================================================
 
 echo -e "\n${GREEN}========================================================${NC}"
-echo -e "${GREEN}        TOUT EST DEMARRE AVEC SUCCES ! ${NC}"
+echo -e "${GREEN}        TOUT EST DEMARRE AVEC SUCCES !${NC}"
 echo -e "${GREEN}========================================================${NC}"
-
-echo "Maintenez la touche CTRL appuyee et cliquez sur les liens :"
+echo ""
+echo "Profils Docker Compose actifs :"
+echo -e "  ${CYAN}backend${NC}    → Laravel + PostgreSQL + MailCatcher"
+echo -e "  ${CYAN}ia${NC}         → FastAPI + Ollama + MongoDB"
+echo -e "  ${CYAN}monitoring${NC} → ETL + Grafana"
+echo -e "  ${CYAN}(defaut)${NC}   → Frontend + Mobile"
+echo ""
+echo "Maintenez CTRL et cliquez sur les liens :"
 echo ""
 echo " - API Laravel         -> http://localhost"
 echo " - Back-office Admin   -> http://localhost/admin"
@@ -369,12 +363,18 @@ echo " - Mobile React Native -> http://localhost:6000"
 echo " - API Doc Swagger     -> http://localhost/api/documentation"
 echo " - Grafana             -> http://localhost:3000"
 echo " - API IA (FastAPI)    -> http://localhost:4000/docs"
-echo " - Ollama HC           -> http://localhost:11434"
+echo " - Ollama              -> http://localhost:11434"
 echo ""
 echo "Identifiants Back-office Admin (test) : admin@healthai-coach.mspr / password123"
-echo "Identifiants Frontend React (test) : john.doe@example.com / password123"
-echo "Identifiants Mobile React Native (test) : john.doe@example.com / password123"
-echo "Identifiants Grafana (peut être modifiés) : admin / admin"
+echo "Identifiants Frontend + Mobile (test) : john.doe@example.com / password123"
+echo "Identifiants Grafana                  : admin / admin"
+echo ""
+echo -e "${GREEN}Commandes utiles :${NC}"
+echo "  Arreter tout          : docker compose --profile backend --profile ia --profile monitoring down"
+echo "  Reset complet         : ./start.sh --fresh"
+echo "  Logs backend          : docker compose --profile backend logs -f"
+echo "  Generer une backup    : ./backup.sh"
+echo "  Restaurer backup      : ./restore.sh"
 echo -e "${GREEN}========================================================${NC}\n"
 
 echo "[INFOS] Mode d'execution : $AUTO_MODE (0=interactif, 1=automatique)"
