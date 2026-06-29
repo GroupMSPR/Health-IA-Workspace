@@ -189,7 +189,7 @@ docker run --rm -v "$(pwd)/Backend:/app" alpine sh -c "
 end_task "[3/13] Preparation du Backend Laravel" 0
 
 # =============================================================================
-#  [4/13] Arrêt des conteneurs existants
+#  [4/13] Arrêt des conteneurs existants + nettoyage réseau conflictuel
 # =============================================================================
 start_task "[4/13] Arret des conteneurs existants"
 if [ "$FRESH_MODE" -eq 1 ]; then
@@ -199,6 +199,16 @@ else
     docker compose --profile backend --profile ia --profile monitoring \
         down --remove-orphans >> "$LOG_FILE" 2>&1
 fi
+
+# Supprime le réseau healthai_backend_sail s'il a été créé par un autre projet
+# (label com.docker.compose.network=sail au lieu de healthai_network)
+NETWORK_LABEL=$(docker network inspect healthai_backend_sail \
+    --format '{{index .Labels "com.docker.compose.network"}}' 2>/dev/null || true)
+if [ "$NETWORK_LABEL" = "sail" ]; then
+    echo "[INFO] Suppression du reseau orphelin healthai_backend_sail (label=sail)" >> "$LOG_FILE" 2>&1
+    docker network rm healthai_backend_sail >> "$LOG_FILE" 2>&1 || true
+fi
+
 end_task "[4/13] Arret des conteneurs existants" 0
 
 # =============================================================================
