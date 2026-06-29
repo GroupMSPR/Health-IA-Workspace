@@ -16,7 +16,7 @@ NC='\033[0m'
 DB_PASSWORD="${DB_PASSWORD:-password}"
 DB_USER="sail"
 DB_NAME="laravel"
-CONTAINER="healthai_pgsql"
+CONTAINER=$(docker ps --format '{{.Names}}' | grep "healthai_pgsql" | head -n 1)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BACKUP_DIR="$SCRIPT_DIR/backups"
 
@@ -24,8 +24,8 @@ echo -e "${CYAN}========================================================${NC}"
 echo -e "${CYAN}      Restauration PostgreSQL – HealthAI Coach${NC}"
 echo -e "${CYAN}========================================================${NC}"
 
-if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER}$"; then
-    echo -e "${RED}[✗] Le conteneur $CONTAINER n'est pas en cours d'exécution.${NC}"
+if [ -z "$CONTAINER" ]; then
+    echo -e "${RED}[✗] Aucun conteneur healthai_pgsql trouvé (healthai_pgsql ou healthai_pgsql-1).${NC}"
     echo -e "${YELLOW}    Lancez d'abord le projet avec : ./start.sh${NC}"
     exit 1
 fi
