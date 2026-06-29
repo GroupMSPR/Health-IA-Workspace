@@ -17,6 +17,7 @@ export DB_DATABASE="laravel"
 export MONGO_ROOT_USER="root"
 export MONGO_ROOT_PASSWORD="example"
 export BUILDKIT_PROGRESS=plain
+export DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1521067317923025046/KlSUxUppbi6AqX_HmZ8GOP5a3pPPIrxZyJqi1HekWWDrXcOA6HTurChC6Uu3mkjetjQX"
 
 AUTO_MODE=0
 FRESH_MODE=0
@@ -113,6 +114,10 @@ end_task "[0/13] Verification de l'environnement Docker" 0
 # =============================================================================
 start_task "[1/13] Verification de la configuration Discord (alertes monitoring)"
 if [ -z "${DISCORD_WEBHOOK_URL}" ]; then
+    if [ ! -f ".env" ]; then
+        cp .env.example .env
+    fi
+    sed -i "s|^DISCORD_WEBHOOK_URL=.*|DISCORD_WEBHOOK_URL=$DISCORD_WEBHOOK_URL|" .env
     if [ -f ".env" ] && grep -q "DISCORD_WEBHOOK_URL" .env; then
         export DISCORD_WEBHOOK_URL=$(grep "DISCORD_WEBHOOK_URL" .env | cut -d'=' -f2-)
         end_task "[1/13] DISCORD_WEBHOOK_URL charge depuis .env" 0

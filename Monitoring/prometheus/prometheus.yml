@@ -8,7 +8,7 @@ global:
 alerting:
   alertmanagers:
     - static_configs:
-        - targets: ['alertmanager:9093']
+        - targets: ['healthai_alertmanager:9093']
 
 rule_files:
   - '/etc/prometheus/rules/*.yml'
@@ -25,28 +25,28 @@ scrape_configs:
   # Métriques système hôte
   - job_name: 'node'
     static_configs:
-      - targets: ['node-exporter:9100']
+      - targets: ['healthai_node_exporter:9100']
         labels:
           service: 'host'
 
   # Métriques conteneurs Docker
   - job_name: 'cadvisor'
     static_configs:
-      - targets: ['cadvisor:8080']
+      - targets: ['healthai_cadvisor:8080']
         labels:
           service: 'docker'
 
   # PostgreSQL
   - job_name: 'postgres'
     static_configs:
-      - targets: ['postgres-exporter:9187']
+      - targets: ['healthai_postgres_exporter:9187']
         labels:
           service: 'postgresql'
 
   # MongoDB
   - job_name: 'mongodb'
     static_configs:
-      - targets: ['mongodb-exporter:9216']
+      - targets: ['healthai_mongodb_exporter:9216']
         labels:
           service: 'mongodb'
 
@@ -67,4 +67,4 @@ scrape_configs:
       - source_labels: [__param_target]
         target_label: instance
       - target_label: __address__
-        replacement: blackbox-exporter:9115
+        replacement: healthai_blackbox_exporter:9115
