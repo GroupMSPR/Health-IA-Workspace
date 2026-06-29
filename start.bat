@@ -76,12 +76,14 @@ REM ============================================================================
 REM  [2/13] Clonage des repos
 REM =============================================================================
 echo [*] [2/13] Clonage des repos
-if not exist "API-Ollama" git clone https://github.com/GroupMSPR/Health-IA-FastAPI.git API-Ollama >> "%LOG_FILE%" 2>&1
-if not exist "ETL"        git clone https://github.com/GroupMSPR/Health-IA-ETL.git ETL >> "%LOG_FILE%" 2>&1
-if not exist "Grafana"    git clone https://github.com/GroupMSPR/Health-IA-Grafana.git Grafana >> "%LOG_FILE%" 2>&1
-if not exist "Backend"    git clone https://github.com/GroupMSPR/Health-IA-Backend.git Backend >> "%LOG_FILE%" 2>&1
-if not exist "Frontend"   git clone https://github.com/GroupMSPR/Health-IA-Frontend.git Frontend >> "%LOG_FILE%" 2>&1
-if not exist "Mobile"     git clone https://github.com/GroupMSPR/Health-IA-Mobile.git Mobile >> "%LOG_FILE%" 2>&1
+
+call :clone_or_fix "API-Ollama" "https://github.com/GroupMSPR/Health-IA-FastAPI.git" "API-Ollama\Dockerfile"
+call :clone_or_fix "ETL"        "https://github.com/GroupMSPR/Health-IA-ETL.git"       "ETL\Dockerfile"
+call :clone_or_fix "Grafana"    "https://github.com/GroupMSPR/Health-IA-Grafana.git"   "Grafana\README.md"
+call :clone_or_fix "Backend"    "https://github.com/GroupMSPR/Health-IA-Backend.git"   "Backend\composer.json"
+call :clone_or_fix "Frontend"   "https://github.com/GroupMSPR/Health-IA-Frontend.git"  "Frontend\Dockerfile"
+call :clone_or_fix "Mobile"     "https://github.com/GroupMSPR/Health-IA-Mobile.git"    "Mobile\package.json"
+
 echo [OK] [2/13] Clonage des repos
 
 REM =============================================================================
@@ -114,6 +116,12 @@ if "%FRESH_MODE%"=="1" (
     docker compose --profile backend --profile ia --profile monitoring down -v --remove-orphans >> "%LOG_FILE%" 2>&1
 ) else (
     docker compose --profile backend --profile ia --profile monitoring down --remove-orphans >> "%LOG_FILE%" 2>&1
+)
+REM Suppression du reseau si recree avec de mauvais labels (conflit Sail standalone)
+docker network ls --filter "name=healthai_backend_sail" --format "{{.Name}}" 2>nul | findstr /X "healthai_backend_sail" >nul 2>&1
+if not errorlevel 1 (
+    docker network inspect healthai_backend_sail 2>nul | findstr /C:"\"healthai_network\"" >nul 2>&1
+    if errorlevel 1 docker network rm healthai_backend_sail >> "%LOG_FILE%" 2>&1
 )
 echo [OK] [4/13] Arret des conteneurs existants
 
@@ -348,6 +356,23 @@ if "%AUTO_MODE%"=="0" (
 
 endlocal
 exit /b 0
+
+REM =============================================================================
+REM  Sous-routine : clone ou re-clone si fichier cle manquant
+REM  Usage : call :clone_or_fix <dossier> <url> <fichier_cle>
+REM =============================================================================
+:clone_or_fix
+set "_DIR=%~1"
+set "_URL=%~2"
+set "_CHECK=%~3"
+if not exist "%_DIR%" (
+    git clone "%_URL%" "%_DIR%" >> "%LOG_FILE%" 2>&1
+) else if not exist "%_CHECK%" (
+    echo [WARN] %_DIR% incomplet, re-clonage... >> "%LOG_FILE%" 2>&1
+    rmdir /s /q "%_DIR%"
+    git clone "%_URL%" "%_DIR%" >> "%LOG_FILE%" 2>&1
+)
+goto :eof
 
 REM =============================================================================
 REM  Gestionnaire d'erreur

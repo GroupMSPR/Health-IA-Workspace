@@ -134,12 +134,25 @@ fi
 #  [2/13] Clonage des repos
 # =============================================================================
 start_task "[2/13] Clonage des repos"
-[ ! -d "API-Ollama" ] && git clone https://github.com/GroupMSPR/Health-IA-FastAPI.git API-Ollama >> "$LOG_FILE" 2>&1
-[ ! -d "ETL"        ] && git clone https://github.com/GroupMSPR/Health-IA-ETL.git ETL >> "$LOG_FILE" 2>&1
-[ ! -d "Grafana"    ] && git clone https://github.com/GroupMSPR/Health-IA-Grafana.git Grafana >> "$LOG_FILE" 2>&1
-[ ! -d "Backend"    ] && git clone https://github.com/GroupMSPR/Health-IA-Backend.git Backend >> "$LOG_FILE" 2>&1
-[ ! -d "Frontend"   ] && git clone https://github.com/GroupMSPR/Health-IA-Frontend.git Frontend >> "$LOG_FILE" 2>&1
-[ ! -d "Mobile"     ] && git clone https://github.com/GroupMSPR/Health-IA-Mobile.git Mobile >> "$LOG_FILE" 2>&1
+
+clone_or_fix() {
+    local dir=$1 url=$2 check=$3
+    if [ ! -d "$dir" ]; then
+        git clone "$url" "$dir" >> "$LOG_FILE" 2>&1
+    elif [ ! -f "$dir/$check" ]; then
+        echo "[WARN] $dir incomplet, re-clonage..." >> "$LOG_FILE" 2>&1
+        rm -rf "$dir"
+        git clone "$url" "$dir" >> "$LOG_FILE" 2>&1
+    fi
+}
+
+clone_or_fix "API-Ollama" "https://github.com/GroupMSPR/Health-IA-FastAPI.git"  "Dockerfile"
+clone_or_fix "ETL"        "https://github.com/GroupMSPR/Health-IA-ETL.git"       "Dockerfile"
+clone_or_fix "Grafana"    "https://github.com/GroupMSPR/Health-IA-Grafana.git"   "README.md"
+clone_or_fix "Backend"    "https://github.com/GroupMSPR/Health-IA-Backend.git"   "composer.json"
+clone_or_fix "Frontend"   "https://github.com/GroupMSPR/Health-IA-Frontend.git"  "Dockerfile"
+clone_or_fix "Mobile"     "https://github.com/GroupMSPR/Health-IA-Mobile.git"    "package.json"
+
 end_task "[2/13] Clonage des repos" 0
 
 # =============================================================================
