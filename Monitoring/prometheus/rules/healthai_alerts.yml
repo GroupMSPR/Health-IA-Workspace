@@ -1,0 +1,179 @@
+groups:
+
+  # ─────────────────────────────────────────────────────────────
+  # Services applicatifs (HTTP)
+  # ─────────────────────────────────────────────────────────────
+  - name: services
+    rules:
+
+      - alert: ServiceDown
+        expr: probe_success{job="blackbox_http"} == 0
+        for: 0s
+        labels:
+          severity: critical
+        annotations:
+          summary: "🔴 Service DOWN : {{ $labels.instance }}"
+          description: "Le service {{ $labels.instance }} est inaccessible."
+
+      - alert: ServiceSlowResponse
+        expr: probe_duration_seconds{job="blackbox_http"} > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ Réponse lente : {{ $labels.instance }}"
+          description: "Temps de réponse > 5s depuis 5 minutes (actuel: {{ $value | printf \"%.2f\" }}s)."
+
+      - alert: ServiceSSLExpiringSoon
+        expr: probe_ssl_earliest_cert_expiry{job="blackbox_http"} - time() < 86400 * 14
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ Certificat SSL expire bientôt : {{ $labels.instance }}"
+          description: "Certificat SSL expire dans moins de 14 jours."
+
+  # ─────────────────────────────────────────────────────────────
+  # Conteneurs Docker (cAdvisor)
+  # ─────────────────────────────────────────────────────────────
+  - name: containers
+    rules:
+
+      - alert: ContainerDown
+        expr: time() - container_last_seen{name=~"healthai_.*"} > 120
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "🔴 Conteneur arrêté : {{ $labels.name }}"
+          description: "Le conteneur {{ $labels.name }} n'est plus vu depuis 2 minutes."
+
+      - alert: ContainerHighCPU
+        expr: |
+          rate(container_cpu_usage_seconds_total{name=~"healthai_.*"}[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ CPU élevé : {{ $labels.name }}"
+          description: "CPU du conteneur {{ $labels.name }} > 80% depuis 5 minutes (actuel: {{ $value | printf \"%.1f\" }}%)."
+
+      - alert: ContainerHighMemory
+        expr: |
+          (container_memory_usage_bytes{name=~"healthai_.*"}
+          / clamp_min(container_memory_limit_bytes{name=~"healthai_.*"}, 1))
+          * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ Mémoire élevée : {{ $labels.name }}"
+          description: "RAM du conteneur {{ $labels.name }} > 85% de la limite (actuel: {{ $value | printf \"%.1f\" }}%)."
+
+      - alert: ContainerRestarting
+        expr: increase(container_start_time_seconds{name=~"healthai_.*"}[15m]) > 2
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ Redémarrages fréquents : {{ $labels.name }}"
+          description: "Le conteneur {{ $labels.name }} a redémarré plus de 2 fois en 15 minutes."
+
+  # ─────────────────────────────────────────────────────────────
+  # Bases de données
+  # ─────────────────────────────────────────────────────────────
+  - name: databases
+    rules:
+
+      - alert: PostgreSQLDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "🔴 PostgreSQL inaccessible"
+          description: "L'exporter PostgreSQL ne peut pas joindre la base de données."
+
+      - alert: PostgreSQLTooManyConnections
+        expr: pg_stat_database_numbackends{datname="laravel"} > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ Trop de connexions PostgreSQL"
+          description: "Connexions actives : {{ $value }}. Limite recommandée : 80."
+
+      - alert: MongoDBDown
+        expr: mongodb_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "🔴 MongoDB inaccessible"
+          description: "L'exporter MongoDB ne peut pas joindre la base de données."
+
+      - alert: MongoDBTooManyConnections
+        expr: mongodb_connections{state="current"} > 200
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ Trop de connexions MongoDB"
+          description: "Connexions MongoDB actives : {{ $value }}."
+
+  # ─────────────────────────────────────────────────────────────
+  # Système hôte (Node Exporter)
+  # ─────────────────────────────────────────────────────────────
+  - name: host
+    rules:
+
+      - alert: HostHighCPU
+        expr: |
+          100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ CPU hôte élevé"
+          description: "CPU > 85% depuis 10 minutes (actuel: {{ $value | printf \"%.1f\" }}%)."
+
+      - alert: HostHighMemory
+        expr: |
+          (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "🔴 RAM hôte critique"
+          description: "RAM utilisée > 90% (actuel: {{ $value | printf \"%.1f\" }}%)."
+
+      - alert: HostDiskAlmostFull
+        expr: |
+          (1 - node_filesystem_avail_bytes{mountpoint="/",fstype!="tmpfs"}
+          / node_filesystem_size_bytes{mountpoint="/",fstype!="tmpfs"}) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ Disque presque plein"
+          description: "Disque / utilisé à {{ $value | printf \"%.1f\" }}%."
+
+      - alert: HostDiskFull
+        expr: |
+          (1 - node_filesystem_avail_bytes{mountpoint="/",fstype!="tmpfs"}
+          / node_filesystem_size_bytes{mountpoint="/",fstype!="tmpfs"}) * 100 > 95
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "🔴 Disque plein"
+          description: "Disque / utilisé à {{ $value | printf \"%.1f\" }}%. ACTION REQUISE."
+
+      - alert: HostHighLoad
+        expr: node_load5 / count without(cpu, mode)(node_cpu_seconds_total{mode="idle"}) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ Charge système élevée"
+          description: "Load average 5min : {{ $value | printf \"%.2f\" }} (> 2x le nombre de CPUs)."

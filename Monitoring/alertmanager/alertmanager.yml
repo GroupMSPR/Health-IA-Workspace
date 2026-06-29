@@ -1,0 +1,47 @@
+global:
+  resolve_timeout: 5m
+
+# ── Modèle de message Discord ────────────────────────────────
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# ── Routage des alertes ──────────────────────────────────────
+route:
+  group_by: ['alertname', 'service', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'discord-healthai'
+
+  routes:
+    # Alertes critiques → notification immédiate, répétition toutes les heures
+    - matchers:
+        - severity = critical
+      group_wait: 0s
+      repeat_interval: 1h
+      receiver: 'discord-healthai'
+
+    # Alertes warning → groupées, répétition toutes les 4h
+    - matchers:
+        - severity = warning
+      group_wait: 1m
+      repeat_interval: 4h
+      receiver: 'discord-healthai'
+
+# ── Récepteurs ───────────────────────────────────────────────
+receivers:
+  - name: 'discord-healthai'
+    webhook_configs:
+      - url: 'http://alertmanager-discord:9094'
+        send_resolved: true
+        http_config:
+          follow_redirects: true
+
+# ── Inhibitions ──────────────────────────────────────────────
+inhibit_rules:
+  # Si un service est DOWN, on inhibe les alertes warning du même service
+  - source_matchers:
+      - severity = critical
+    target_matchers:
+      - severity = warning
+    equal: ['alertname', 'instance']
