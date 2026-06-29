@@ -87,8 +87,8 @@ services:
 
   healthai_laravel:
     build:
-      context: ./Backend
-      dockerfile: vendor/laravel/sail/runtimes/8.5/Dockerfile
+      context: ./Backend/vendor/laravel/sail/runtimes/8.5
+      dockerfile: Dockerfile
       args:
         WWWGROUP: ${WWWGROUP:-1000}
     image: sail-8.5/app
