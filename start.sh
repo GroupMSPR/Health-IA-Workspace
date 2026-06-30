@@ -260,8 +260,8 @@ fi
 
 # Migrations
 if [ "$FRESH_MODE" -eq 1 ]; then
-    docker compose exec -T healthai_laravel php artisan migrate:fresh --force --seed >> "$LOG_FILE" 2>&1 || {
-        ERROR_MESSAGE="migrate:fresh --seed a echoue."
+    docker compose exec -T healthai_laravel php artisan migrate:fresh --force >> "$LOG_FILE" 2>&1 || {
+        ERROR_MESSAGE="migrate:fresh a echoue."
         end_task "[5/13] Lancement Profil BACKEND" 1
         error_handler
     }
@@ -276,7 +276,7 @@ else
         end_task "[5/13] Lancement Profil BACKEND" 1
         error_handler
     }
-    docker compose exec -T healthai_laravel php artisan db:seed --force >> "$LOG_FILE" 2>&1
+    # docker compose exec -T healthai_laravel php artisan db:seed --force >> "$LOG_FILE" 2>&1
     if [ -f "Backend/docker/healthia_dump_pg.sql" ]; then
         docker compose exec -T healthai_pgsql sh -c \
             "PGPASSWORD=$DB_PASSWORD psql -U sail -d laravel" \
@@ -413,7 +413,6 @@ echo ""
 echo " - API Laravel         -> http://localhost"
 echo " - Back-office Admin   -> http://localhost/admin"
 echo " - Frontend React      -> http://localhost:5001"
-echo " - Mobile React Native -> http://localhost:6000"
 echo " - API Doc Swagger     -> http://localhost/api/documentation"
 echo " - Grafana             -> http://localhost:3000"
 echo " - API IA (FastAPI)    -> http://localhost:4000/docs"
@@ -434,6 +433,23 @@ echo -e "${GREEN}========================================================${NC}\n
 
 echo "[INFOS] Mode : $AUTO_MODE (0=interactif, 1=automatique)"
 echo "[INFOS] Fresh : $FRESH_MODE (0=incremental, 1=reset)"
+
+echo -e "${GREEN}========================================================${NC}"
+echo -e "${GREEN}                ACCES MOBILE${NC}"
+echo -e "${GREEN}========================================================${NC}"
+
+# Attente de la generation du QR code par Expo (apparition de "exp://")
+RETRY_COUNT=0; MAX_RETRIES=30
+while ! docker compose logs --no-log-prefix healthai_mobile 2>/dev/null | grep -q "exp://"; do
+    ((RETRY_COUNT++))
+    [ $RETRY_COUNT -ge $MAX_RETRIES ] && break
+    sleep 2
+done
+
+# Affichage du QR code + URLs Expo (sans prefixe pour garder l'alignement du QR)
+docker compose logs --no-log-prefix healthai_mobile 2>/dev/null
+
+echo -e "${GREEN}========================================================${NC}"
 echo ""
 
 if [ "$AUTO_MODE" -eq 0 ]; then
