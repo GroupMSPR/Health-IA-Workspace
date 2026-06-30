@@ -226,7 +226,7 @@ services:
       # Dashboard infra monitoring (healthai_monitoring.json)
       - ./Grafana/monitoring-dashboards:/var/lib/grafana/dashboards/monitoring:ro
       # Dashboards data Diana : users, foods, exercises, healthMetrics
-      - ./Grafana/dashboards:/var/lib/grafana/dashboards/data:ro
+      - ./Grafana/data-dashboards:/var/lib/grafana/dashboards/data:ro
     ports:
       - "3000:3000"
     networks:

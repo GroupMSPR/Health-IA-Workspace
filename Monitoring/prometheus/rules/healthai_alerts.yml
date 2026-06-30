@@ -12,8 +12,8 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "🔴 Service DOWN : {{ $labels.instance }}"
-          description: "Le service {{ $labels.instance }} est inaccessible."
+          summary: "🔴 [{{ $labels.machine }}] Service DOWN : {{ $labels.instance }}"
+          description: "Le service {{ $labels.instance }} est inaccessible sur la machine {{ $labels.machine }}."
 
       - alert: ServiceSlowResponse
         expr: probe_duration_seconds{job="blackbox_http"} > 5
@@ -21,8 +21,8 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "⚠️ Réponse lente : {{ $labels.instance }}"
-          description: "Temps de réponse > 5s depuis 5 minutes (actuel: {{ $value | printf \"%.2f\" }}s)."
+          summary: "⚠️ [{{ $labels.machine }}] Réponse lente : {{ $labels.instance }}"
+          description: "Temps de réponse > 5s depuis 5 minutes (actuel: {{ $value | printf \"%.2f\" }}s) — machine : {{ $labels.machine }}."
 
       - alert: ServiceSSLExpiringSoon
         expr: probe_ssl_earliest_cert_expiry{job="blackbox_http"} - time() < 86400 * 14
@@ -30,8 +30,8 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "⚠️ Certificat SSL expire bientôt : {{ $labels.instance }}"
-          description: "Certificat SSL expire dans moins de 14 jours."
+          summary: "⚠️ [{{ $labels.machine }}] Certificat SSL expire bientôt : {{ $labels.instance }}"
+          description: "Certificat SSL expire dans moins de 14 jours — machine : {{ $labels.machine }}."
 
   # ─────────────────────────────────────────────────────────────
   # Conteneurs Docker (cAdvisor)
@@ -45,8 +45,8 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "🔴 Conteneur arrêté : {{ $labels.name }}"
-          description: "Le conteneur {{ $labels.name }} n'est plus vu depuis 2 minutes."
+          summary: "🔴 [{{ $labels.machine }}] Conteneur arrêté : {{ $labels.name }}"
+          description: "Le conteneur {{ $labels.name }} n'est plus vu depuis 2 minutes — machine : {{ $labels.machine }}."
 
       - alert: ContainerHighCPU
         expr: |
@@ -55,8 +55,8 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "⚠️ CPU élevé : {{ $labels.name }}"
-          description: "CPU du conteneur {{ $labels.name }} > 80% depuis 5 minutes (actuel: {{ $value | printf \"%.1f\" }}%)."
+          summary: "⚠️ [{{ $labels.machine }}] CPU élevé : {{ $labels.name }}"
+          description: "CPU du conteneur {{ $labels.name }} > 80% depuis 5 minutes (actuel: {{ $value | printf \"%.1f\" }}%) — machine : {{ $labels.machine }}."
 
       - alert: ContainerHighMemory
         expr: |
@@ -67,8 +67,8 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "⚠️ Mémoire élevée : {{ $labels.name }}"
-          description: "RAM du conteneur {{ $labels.name }} > 85% de la limite (actuel: {{ $value | printf \"%.1f\" }}%)."
+          summary: "⚠️ [{{ $labels.machine }}] Mémoire élevée : {{ $labels.name }}"
+          description: "RAM du conteneur {{ $labels.name }} > 85% de la limite (actuel: {{ $value | printf \"%.1f\" }}%) — machine : {{ $labels.machine }}."
 
       - alert: ContainerRestarting
         expr: increase(container_start_time_seconds{name=~"healthai_.*"}[15m]) > 2
@@ -76,8 +76,8 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "⚠️ Redémarrages fréquents : {{ $labels.name }}"
-          description: "Le conteneur {{ $labels.name }} a redémarré plus de 2 fois en 15 minutes."
+          summary: "⚠️ [{{ $labels.machine }}] Redémarrages fréquents : {{ $labels.name }}"
+          description: "Le conteneur {{ $labels.name }} a redémarré plus de 2 fois en 15 minutes — machine : {{ $labels.machine }}."
 
   # ─────────────────────────────────────────────────────────────
   # Bases de données
@@ -91,8 +91,8 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "🔴 PostgreSQL inaccessible"
-          description: "L'exporter PostgreSQL ne peut pas joindre la base de données."
+          summary: "🔴 [{{ $labels.machine }}] PostgreSQL inaccessible"
+          description: "L'exporter PostgreSQL ne peut pas joindre la base de données — machine : {{ $labels.machine }}."
 
       - alert: PostgreSQLTooManyConnections
         expr: pg_stat_database_numbackends{datname="laravel"} > 80
@@ -100,8 +100,8 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "⚠️ Trop de connexions PostgreSQL"
-          description: "Connexions actives : {{ $value }}. Limite recommandée : 80."
+          summary: "⚠️ [{{ $labels.machine }}] Trop de connexions PostgreSQL"
+          description: "Connexions actives : {{ $value }}. Limite recommandée : 80 — machine : {{ $labels.machine }}."
 
       - alert: MongoDBDown
         expr: mongodb_up == 0
@@ -109,8 +109,8 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "🔴 MongoDB inaccessible"
-          description: "L'exporter MongoDB ne peut pas joindre la base de données."
+          summary: "🔴 [{{ $labels.machine }}] MongoDB inaccessible"
+          description: "L'exporter MongoDB ne peut pas joindre la base de données — machine : {{ $labels.machine }}."
 
       - alert: MongoDBTooManyConnections
         expr: mongodb_connections{state="current"} > 200
@@ -118,8 +118,8 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "⚠️ Trop de connexions MongoDB"
-          description: "Connexions MongoDB actives : {{ $value }}."
+          summary: "⚠️ [{{ $labels.machine }}] Trop de connexions MongoDB"
+          description: "Connexions MongoDB actives : {{ $value }} — machine : {{ $labels.machine }}."
 
   # ─────────────────────────────────────────────────────────────
   # Système hôte (Node Exporter)
@@ -134,8 +134,8 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "⚠️ CPU hôte élevé"
-          description: "CPU > 85% depuis 10 minutes (actuel: {{ $value | printf \"%.1f\" }}%)."
+          summary: "⚠️ [{{ $labels.machine }}] CPU hôte élevé"
+          description: "CPU > 85% depuis 10 minutes (actuel: {{ $value | printf \"%.1f\" }}%) — machine : {{ $labels.machine }}."
 
       - alert: HostHighMemory
         expr: |
@@ -144,8 +144,8 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "🔴 RAM hôte critique"
-          description: "RAM utilisée > 90% (actuel: {{ $value | printf \"%.1f\" }}%)."
+          summary: "🔴 [{{ $labels.machine }}] RAM hôte critique"
+          description: "RAM utilisée > 90% (actuel: {{ $value | printf \"%.1f\" }}%) — machine : {{ $labels.machine }}."
 
       - alert: HostDiskAlmostFull
         expr: |
@@ -155,8 +155,8 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "⚠️ Disque presque plein"
-          description: "Disque / utilisé à {{ $value | printf \"%.1f\" }}%."
+          summary: "⚠️ [{{ $labels.machine }}] Disque presque plein"
+          description: "Disque / utilisé à {{ $value | printf \"%.1f\" }}% — machine : {{ $labels.machine }}."
 
       - alert: HostDiskFull
         expr: |
@@ -166,8 +166,8 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "🔴 Disque plein"
-          description: "Disque / utilisé à {{ $value | printf \"%.1f\" }}%. ACTION REQUISE."
+          summary: "🔴 [{{ $labels.machine }}] Disque plein"
+          description: "Disque / utilisé à {{ $value | printf \"%.1f\" }}%. ACTION REQUISE — machine : {{ $labels.machine }}."
 
       - alert: HostHighLoad
         expr: node_load5 / count without(cpu, mode)(node_cpu_seconds_total{mode="idle"}) > 2
@@ -175,5 +175,5 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "⚠️ Charge système élevée"
-          description: "Load average 5min : {{ $value | printf \"%.2f\" }} (> 2x le nombre de CPUs)."
+          summary: "⚠️ [{{ $labels.machine }}] Charge système élevée"
+          description: "Load average 5min : {{ $value | printf \"%.2f\" }} (> 2x le nombre de CPUs) — machine : {{ $labels.machine }}."

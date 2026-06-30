@@ -3,7 +3,11 @@ Backend/
 backups/
 ETL/
 Frontend/
-Grafana/
+Grafana/*
+!Grafana/data-dashboards/
+!Grafana/data-dashboards/**
+!Grafana/provisioning/
+!Grafana/provisioning/**
 Mobile/
 Datasets/
 

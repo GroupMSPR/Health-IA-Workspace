@@ -4,6 +4,7 @@ global:
   external_labels:
     project: 'healthai-coach'
     env: 'production'
+    machine: 'diana'
 
 alerting:
   alertmanagers:
