@@ -429,14 +429,10 @@ echo "  Arreter tout     : docker compose --profile backend --profile ia --profi
 echo "  Reset complet    : ./start.sh --fresh"
 echo "  Logs monitoring  : docker compose --profile monitoring logs -f"
 echo "  Restaurer backup : ./restore.sh"
-echo -e "${GREEN}========================================================${NC}\n"
-
-echo "[INFOS] Mode : $AUTO_MODE (0=interactif, 1=automatique)"
-echo "[INFOS] Fresh : $FRESH_MODE (0=incremental, 1=reset)"
-
-echo -e "${GREEN}========================================================${NC}"
-echo -e "${GREEN}                ACCES MOBILE${NC}"
-echo -e "${GREEN}========================================================${NC}"
+echo -e "\n"
+echo -e "${GREEN}===============================${NC}"
+echo -e "${GREEN}        ACCES MOBILE${NC}"
+echo -e "${GREEN}===============================${NC}"
 
 # Attente de la generation du QR code par Expo (apparition de "exp://")
 RETRY_COUNT=0; MAX_RETRIES=30
@@ -446,10 +442,13 @@ while ! docker compose logs --no-log-prefix healthai_mobile 2>/dev/null | grep -
     sleep 2
 done
 
-# Affichage du QR code + URLs Expo (sans prefixe pour garder l'alignement du QR)
-docker compose logs --no-log-prefix healthai_mobile 2>/dev/null
+# Affichage du QR code uniquement (lignes composees de blocs Unicode)
+docker compose logs --no-log-prefix healthai_mobile 2>/dev/null \
+    | grep -E '[█▄▀]'
 
-echo -e "${GREEN}========================================================${NC}"
+echo -e "${GREEN}===============================${NC}\n"
+echo "[INFOS] Mode : $AUTO_MODE (0=interactif, 1=automatique)"
+echo "[INFOS] Fresh : $FRESH_MODE (0=incremental, 1=reset)"
 echo ""
 
 if [ "$AUTO_MODE" -eq 0 ]; then
