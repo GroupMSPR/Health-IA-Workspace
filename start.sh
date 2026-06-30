@@ -113,11 +113,11 @@ end_task "[0/13] Verification de l'environnement Docker" 0
 #  [1/13] Vérification DISCORD_WEBHOOK_URL
 # =============================================================================
 start_task "[1/13] Verification de la configuration Discord (alertes monitoring)"
-if [ -z "${DISCORD_WEBHOOK_URL}" ]; then
-    if [ ! -f ".env" ]; then
+if [ ! -f ".env" ]; then
         cp .env.example .env
-    fi
-    sed -i "s|^DISCORD_WEBHOOK_URL=.*|DISCORD_WEBHOOK_URL=$DISCORD_WEBHOOK_URL|" .env
+        sed -i "s|^DISCORD_WEBHOOK_URL=.*|DISCORD_WEBHOOK_URL=$DISCORD_WEBHOOK_URL|" .env
+fi
+if [ -z "${DISCORD_WEBHOOK_URL}" ]; then
     if [ -f ".env" ] && grep -q "DISCORD_WEBHOOK_URL" .env; then
         export DISCORD_WEBHOOK_URL=$(grep "DISCORD_WEBHOOK_URL" .env | cut -d'=' -f2-)
         end_task "[1/13] DISCORD_WEBHOOK_URL charge depuis .env" 0
