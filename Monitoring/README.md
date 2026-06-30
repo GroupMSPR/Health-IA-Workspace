@@ -1,343 +1,346 @@
-# HealthAI Coach – Stack Monitoring
+# HealthAI Coach – Stack Monitoring & Dashboards Grafana
 
-> Prometheus · Alertmanager · Grafana · Discord
+> Prometheus · Grafana · Discord · PostgreSQL
 
 ---
 
 ## Vue d'ensemble
 
-Le monitoring surveille **tous les services** du projet en temps réel.
-Quand quelque chose ne va pas, une alerte part automatiquement sur Discord.
-
 ```mermaid
 flowchart TD
-    subgraph Services["🏗️ Services HealthAI"]
-        L[Laravel API\n:80]
-        F[FastAPI IA\n:4000]
-        O[Ollama LLM\n:11434]
-        PG[(PostgreSQL\n:5432)]
-        MG[(MongoDB\n:27017)]
-        FE[Frontend React\n:5001]
+    subgraph DATA["📦 Données applicatives (PostgreSQL)"]
+        PG[(PostgreSQL\nhealthai_pgsql:5432\nusers, foods, exercises\nhealth_metrics, practice...)]
     end
 
-    subgraph Exporters["📡 Exporters — collectent les métriques"]
+    subgraph INFRA["📡 Métriques infrastructure (Prometheus)"]
         BB[Blackbox Exporter\nsondes HTTP up/down]
         PE[Postgres Exporter\nconnexions, transactions]
         ME[MongoDB Exporter\nconnexions, opérations]
         NE[Node Exporter\nCPU, RAM, disque hôte]
-        CA[cAdvisor\nressources Docker globales]
+        CA[cAdvisor\nressources Docker]
+        PR[(Prometheus :9090)]
     end
 
-    subgraph Core["⚙️ Cœur Monitoring"]
-        PR[(Prometheus\n:9090\nstocke les métriques)]
-        AM[Alertmanager\n:9093\nroute les alertes]
+    subgraph GRAFANA["📊 Grafana :3000"]
+        DASH_DATA[5 Dashboards Data\nRequêtes SQL directes\nvers PostgreSQL]
+        DASH_INFRA[Dashboard Monitoring\nMétriques Prometheus\ninfra + services]
+        ALERT[Alerting natif Grafana\nalertingSimplifiedRouting=true]
     end
 
-    subgraph Notification["🔔 Notifications"]
-        BD[Bridge Discord\n:9094\nbridge maison Python]
-        DC[💬 Discord]
+    subgraph NOTIF["🔔 Notifications"]
+        DC[💬 Discord\nHealthAI Bot]
     end
 
-    GR[📊 Grafana\n:3000\ndashboards]
-
-    L & F & O -->|HTTP probe via réseau sail| BB
-    FE -->|HTTP probe via host.docker.internal:5001| BB
-    PG --> PE
-    MG --> ME
-
-    BB & PE & ME & NE & CA -->|expose /metrics| PR
-    PR -->|scrape toutes les 15s| NE
-    PR -->|scrape toutes les 15s| CA
-
-    PR -->|évalue règles d'alerte| AM
-    AM -->|webhook JSON| BD
-    BD -->|POST embed Discord| DC
-
-    PR -->|datasource| GR
+    PG -->|datasource SQL uid=fficjnp24r8jka| DASH_DATA
+    BB & PE & ME & NE & CA -->|/metrics| PR
+    PR -->|datasource Prometheus uid=prometheus-healthai| DASH_INFRA
+    PR -->|évalue règles d'alerte| ALERT
+    ALERT -->|webhook natif Discord| DC
 ```
-
-> **Pourquoi `host.docker.internal` pour le Frontend ?**
-> Le conteneur Frontend est sur le réseau `frontend_default` (réseau isolé créé par son propre compose).
-> Les autres services sont sur `healthai_backend_sail`. Le blackbox exporter ne peut pas
-> joindre `healthai_frontend` par nom. On passe par le port exposé sur le host (:5001).
 
 ---
 
-## Architecture réseau — pourquoi certaines sondes passent par le host
+## Les 5 dashboards Grafana
+
+Tous accessibles sur [http://localhost:3000](http://localhost:3000) → dossier **HealthAI Data** et **HealthAI Monitoring**.
+
+| Dashboard | Source | Plage par défaut | Données disponibles |
+|---|---|---|---|
+| **Dashboard – Utilisateurs** | PostgreSQL `users` | Dernière année | 2 users créés le 2026-06-29 |
+| **Dashboard – Foods** | PostgreSQL `foods` + `consume` | 5 dernières années | 250 aliments (2021–2026), 30 consommations |
+| **Dashboard – Exercices** | PostgreSQL `exercises` + `practice` | 5 dernières années | 250 exercices, 40 séances |
+| **Dashboard – Health metrics** | PostgreSQL `health_metrics` | Dernière année | 30 entrées (janv.–avr. 2026) |
+| **HealthAI Coach – Application** | PostgreSQL (multi-tables) | Derniers 30 jours | Synthèse globale |
+| **HealthAI Coach – Monitoring** | Prometheus | Dernière heure | Temps réel — infra + services |
+
+---
+
+## ❓ Pourquoi je n'ai pas de données dans mes panels ?
+
+### Raison 1 — La plage de dates ne couvre pas les données
+
+C'est la cause la plus fréquente. Chaque panel filtre les données sur la plage horaire visible en haut à droite de Grafana.
+
+**Les données PostgreSQL ont ces dates réelles :**
+
+| Table | Colonnes avec dates | Plage des données en base |
+|---|---|---|
+| `users` | `created_at` | 2026-06-29 (les 2 users ont été créés le même jour) |
+| `foods` | `created_at` | 2021-06-19 → 2026-06-15 (étalées sur 5 ans) |
+| `exercises` | `created_at` | 2021 → 2026 |
+| `health_metrics` | `date` | 2026-01-11 → 2026-04-26 |
+| `practice` | ❌ **pas de date** | — (impossible de faire une time series) |
+| `consume` | ❌ **pas de date** | — (impossible de faire une time series) |
+
+**Ce qu'il faut faire :** Sélectionner la bonne plage dans le sélecteur en haut à droite.
+
+```
+Dashboard Utilisateurs  → sélectionner "Last 1 year"
+Dashboard Foods         → sélectionner "Last 5 years"
+Dashboard Exercices     → sélectionner "Last 5 years"
+Dashboard Health metrics → sélectionner "Last 1 year"  (ou "2026-01-01 → now")
+```
+
+> Les plages par défaut sont déjà configurées correctement dans les fichiers JSON.
+> Si tu vois "No data", c'est souvent parce que tu as changé la plage manuellement.
+
+---
+
+### Raison 2 — Très peu de données de démo
+
+La base de données ne contient que des données de test :
+
+```
+users          →   2 utilisateurs
+exercises      → 250 exercices (bien rempli ✅)
+foods          → 250 aliments (bien rempli ✅)
+practice       →  40 séances pratiquées
+health_metrics →  30 entrées (métriques santé)
+consume        →  30 consommations alimentaires
+subscriptions  →   2 (Free × 1, Premium × 1)
+roles          →   3 (admin × 1, coach × 1, user × 0)
+```
+
+Les panels de type **time series** vont afficher des barres très espacées (1 point tous les 10 jours environ).
+Les panels de type **stat** (chiffre unique) fonctionneront toujours, quelle que soit la plage.
+
+---
+
+### Raison 3 — Tables sans colonne de date (`practice`, `consume`)
+
+Ces deux tables n'ont **pas de `created_at`** en base :
+
+```sql
+-- practice : practice_id, user_id, exercise_id, deleted_at
+-- consume  : consume_id,  user_id, food_id,     deleted_at
+```
+
+Il est donc **impossible** de tracer un graphique temporel "séances par jour" ou "scans par jour".
+Les panels concernés utilisent à la place des **compteurs totaux** (stat panels) ou des jointures sur d'autres tables.
+
+---
+
+### Raison 4 — Datasource PostgreSQL non connectée
+
+Si **tous** les panels Data affichent "No data" en même temps → la datasource SQL est coupée.
+
+**Vérification :**
+```bash
+# 1. Est-ce que Grafana tourne ?
+docker ps | grep grafana
+
+# 2. Est-ce que PostgreSQL est accessible ?
+docker ps | grep pgsql
+
+# 3. Test direct dans Grafana :
+#    Aller dans Configuration → Data sources → HealthAI PostgreSQL → "Test"
+```
+
+Si le test échoue, c'est que le conteneur `healthai_pgsql` n'est pas sur le réseau `sail` ou n'est pas démarré.
+
+**Solution :**
+```bash
+cd /home/diana/Health-IA-Workspace
+./start.sh 
+
+# ou uniquement Grafana
+cd ETL && docker compose up -d grafana
+```
+
+---
+
+### Raison 5 — Scans IA (LLaVA) non tracés en base
+
+Le panel "Scans IA via LLaVA" utilise la table `consume` comme **proxy** car les scans alimentaires effectués par LLaVA/Ollama ne sont pas persistés dans PostgreSQL.
+
+Si les scans IA sont stockés dans MongoDB, il faudrait ajouter une datasource MongoDB dans Grafana.
+En l'état : le chiffre affiché = nombre d'entrées dans `consume` (30).
+
+---
+
+## Résumé rapide — quoi vérifier quand un panel est vide
+
+```mermaid
+flowchart TD
+    VIDE["Panel affiche 'No data'"]
+    Q1{"Tous les panels\nsont vides ?"}
+    Q2{"Panel de type\ntime series ?"}
+    Q3{"La plage inclut\nles dates des données ?"}
+
+    FIX1["→ Vérifier que Grafana et PostgreSQL\ntournent : docker ps"]
+    FIX2["→ Changer la plage :\nFoods/Exercices = 5 ans\nHealth/Users = 1 an"]
+    FIX3["→ Normal si la table n'a\npas de colonne de date\n(practice, consume)"]
+    OK["✅ Le panel affiche\ndes données"]
+
+    VIDE --> Q1
+    Q1 -->|Oui| FIX1
+    Q1 -->|Non| Q2
+    Q2 -->|Non — stat/pie/bar| OK
+    Q2 -->|Oui| Q3
+    Q3 -->|Non| FIX2
+    Q3 -->|Oui mais table sans date| FIX3
+```
+
+---
+
+## Architecture réseau
 
 ```mermaid
 graph LR
-    subgraph SAIL["Réseau : healthai_backend_sail"]
-        BB[Blackbox\nExporter]
-        LA[healthai_laravel\n:80]
-        FA[healthai_fastapi\n:4000]
-        OL[healthai_ollama\n:11434]
-        PG[(healthai_pgsql\n:5432)]
-        MG[(healthai_mongodb\n:27017)]
+    subgraph SAIL["Réseau Docker : healthai_backend_sail"]
+        GR[Grafana :3000]
+        PG2[(PostgreSQL :5432)]
+        PR2[(Prometheus :9090)]
+        BB2[Blackbox :9115]
+        PE2[PgSQL Exp :9187]
+        ME2[Mongo Exp :9216]
+        LA[Laravel :80]
+        FA[FastAPI :4000]
+        OL[Ollama :11434]
     end
 
     subgraph FRONT["Réseau : frontend_default"]
-        FE[healthai_frontend\n:5173 interne]
+        FE[Frontend :5173]
     end
 
     HOST[🖥️ Host WSL2\n:5001 exposé]
 
-    BB -->|direct| LA
-    BB -->|direct| FA
-    BB -->|direct| OL
-    BB -->|host.docker.internal:5001| HOST
-    HOST --> FE
+    GR -->|SQL| PG2
+    GR -->|PromQL| PR2
+    BB2 -->|probe| LA & FA & OL
+    BB2 -->|host.docker.internal:5001| HOST --> FE
 
     style FRONT fill:#ff9999,stroke:#cc0000
     style SAIL fill:#99ccff,stroke:#0066cc
 ```
 
+> **Frontend sur réseau isolé** : Le frontend React tourne sur `frontend_default`, inaccessible depuis le réseau `sail`.
+> La sonde HTTP passe par le port exposé sur le host (`:5001`), c'est pourquoi elle peut retourner HTTP 403
+> depuis Docker (Vite dev server restreint par origine) mais 200 en local — c'est attendu, pas un bug.
+
 ---
 
-## Séquence complète d'une alerte Discord
+## Alerting Grafana → Discord
+
+L'alerting est géré **nativement par Grafana** (pas par Alertmanager) grâce au feature toggle `alertingSimplifiedRouting`.
 
 ```mermaid
 sequenceDiagram
-    participant S as Service (ex: FastAPI)
-    participant BB as Blackbox Exporter
     participant PR as Prometheus
-    participant AM as Alertmanager
-    participant BD as Bridge Discord (Python)
+    participant GR as Grafana Alerting
     participant DC as 💬 Discord
 
-    loop Toutes les 15 secondes
-        PR->>BB: "Sonde http://healthai_fastapi:4000/"
-        BB->>S: GET /
-        S-->>BB: timeout ou connexion refusée
-        BB-->>PR: probe_success=0
+    loop Toutes les 30s (scrape interval règles)
+        GR->>PR: Évalue probe_success{job="blackbox_http"}
+        PR-->>GR: probe_success=0 (service down)
     end
 
-    PR->>PR: Règle ServiceDown : for=0s → FIRE immédiat
-    PR->>AM: ALERT{alertname=ServiceDown, severity=critical}
-
-    AM->>AM: group_wait=0s pour critical
-    AM->>BD: POST / {alerts: [...], status: firing}
-
-    BD->>BD: Formate en Discord embed\n(title, color rouge, fields)
-    BD->>DC: POST webhook\nUser-Agent: HealthAI-Monitoring/1.0
-
+    GR->>GR: Règle "Service DOWN" — for=0s → FIRING
+    GR->>DC: POST webhook Discord natif\n(notification_settings sur chaque règle)
     Note over DC: 🔴 Service DOWN affiché dans #alertes
-
-    Note over S: docker start healthai_fastapi
-    PR->>AM: RESOLVED{alertname=ServiceDown}
-    AM->>BD: POST / {status: resolved}
-    BD->>DC: POST webhook (couleur verte)
-    Note over DC: ✅ Résolu affiché dans #alertes
 ```
 
----
+**Pourquoi `notification_settings` sur chaque règle ?**
+Avec `alertingSimplifiedRouting=true`, Grafana exige que chaque règle déclare son contact point directement.
+Sans ça, les alertes "firing" ne déclenchent pas de notification même si une policy globale existe.
 
-## Structure complète des fichiers
+### Les 7 alertes Grafana configurées
 
-```mermaid
-graph TD
-    subgraph REPO["📁 Health-IA-Workspace"]
-
-        subgraph MON["📁 Monitoring/"]
-            DC2[docker-compose.yml\n8 conteneurs monitoring]
-            ENV[.env\nDISCORD_WEBHOOK_URL + credentials BDD]
-
-            subgraph PROM["📁 prometheus/"]
-                PC[prometheus.yml\nconfig scrape — quoi collecter et où]
-                subgraph RULES["📁 rules/"]
-                    RA[healthai_alerts.yml\n14 règles d'alerte définies]
-                end
-            end
-
-            subgraph ALT["📁 alertmanager/"]
-                AC[alertmanager.yml\nroutage critique vs warning vers Discord]
-            end
-
-            subgraph BRIDGE["📁 discord-bridge/"]
-                BP[bridge.py\nserveur HTTP Python — reçoit Alertmanager\net envoie des embeds Discord formatés]
-                BDF[Dockerfile\npython:3.12-alpine]
-            end
-        end
-
-        subgraph GRF["📁 Grafana/"]
-            subgraph PROV["📁 provisioning/"]
-                subgraph DS["📁 datasources/"]
-                    DSP[prometheus.yml\nauto-connecte Grafana à Prometheus\nUID: prometheus-healthai]
-                    DSQ[postgresql.yml\nauto-connecte Grafana à PostgreSQL\nUID: fficjnp24r8jka]
-                end
-                subgraph DBP["📁 dashboards/"]
-                    DBF[dashboards.yml\ndéclare 2 dossiers Grafana:\nHealthAI Monitoring + HealthAI Data]
-                end
-                subgraph ALP["📁 alerting/"]
-                    CP[contactpoints.yml\ncontact Discord natif Grafana]
-                    PL[policies.yml\nrègle de routage des alertes Grafana]
-                end
-            end
-            subgraph MDASH["📁 monitoring-dashboards/"]
-                MJ[healthai_monitoring.json\ndashboard infra — 7 panneaux services\n+ conteneurs + BDD + système hôte]
-            end
-            subgraph DDASH["Dashboards data existants"]
-                U[usersGrafana.json]
-                F2[foodsGrafana.json]
-                E[exercisesGrafana.json]
-                H[healthMetricsGrafana.json]
-            end
-        end
-
-    end
-```
-
----
-
-## Les 8 conteneurs du stack Monitoring
-
-```mermaid
-graph TD
-    subgraph STACK["docker compose up -d  (depuis Monitoring/)"]
-        PR2["🔥 Prometheus :9090\nCollecte + stocke toutes les métriques\nRétention 30 jours\nÉvalue les règles d'alerte"]
-        AM2["📬 Alertmanager :9093\nReçoit les alertes de Prometheus\nGroupe, filtre les doublons\nRoute vers Discord"]
-        BD2["🐍 Bridge Discord :9094\nServeur HTTP Python maison\nReçoit les webhooks Alertmanager\nFormate en embed Discord + User-Agent"]
-        NE2["🖥️ Node Exporter :9100\nCPU, RAM, Disque, Load du serveur\nMétriques kernel Linux"]
-        CA2["🐳 cAdvisor :8080\nRessources globales Docker\nLimité en WSL2 — pas de vue par conteneur"]
-        PE2["🐘 Postgres Exporter :9187\nConnexions actives, transactions\nTaille des bases, slow queries"]
-        ME2["🍃 MongoDB Exporter :9216\nConnexions, opérations CRUD/s\nÉtat replica set"]
-        BB2["🔍 Blackbox Exporter :9115\nSonde HTTP GET sur chaque service\nMesure up/down + temps de réponse"]
-    end
-```
-
----
-
-## Pourquoi un bridge Python maison ?
-
-```mermaid
-flowchart LR
-    AM3[Alertmanager] -->|POST JSON format v4| ROGERRUM["❌ rogerrum/alertmanager-discord\nBug : embeds mal formatés\nErreur Discord 403 code 1010"]
-    AM3 -->|POST JSON format v4| BRIDGE["✅ discord-bridge/bridge.py\nReçoit le JSON Alertmanager\nConstruit les embeds correctement\nAjoute le User-Agent requis par Discord\nRetourne 200 OK"]
-    BRIDGE -->|POST embeds + User-Agent| DC3[💬 Discord\nRépond 204 No Content]
-
-    style ROGERRUM fill:#ff4444,color:#fff
-    style BRIDGE fill:#44bb44,color:#fff
-    style DC3 fill:#5865F2,color:#fff
-```
-
-> L'image `rogerrum/alertmanager-discord` envoyait des embeds mal formés → Discord répondait 403.
-> Notre bridge Python génère le bon format et ajoute le header `User-Agent` requis par Cloudflare.
-
----
-
-## Les 14 alertes configurées
-
-```mermaid
-graph LR
-    subgraph CRIT["🔴 Critique — notification immédiate, répète toutes les heures"]
-        A1[ServiceDown\nService HTTP mort — for=0s]
-        A2[ContainerDown\nConteneur disparu depuis 2min]
-        A3[PostgreSQLDown\nExporter ne joint plus la BDD]
-        A4[MongoDBDown\nExporter ne joint plus la BDD]
-        A5[HostHighMemory\nRAM hôte > 90%]
-        A6[HostDiskFull\nDisque > 95%]
-    end
-
-    subgraph WARN["⚠️ Warning — répète toutes les 4h"]
-        B1[ServiceSlowResponse\nRéponse HTTP > 5s pendant 5min]
-        B2[ContainerHighCPU\nCPU conteneur > 80% — 5min]
-        B3[ContainerHighMemory\nRAM conteneur > 85% de la limite]
-        B4[ContainerRestarting\nPlus de 2 redémarrages en 15min]
-        B5[PostgreSQLTooManyConnections\nConnexions > 80]
-        B6[MongoDBTooManyConnections\nConnexions > 200]
-        B7[HostHighCPU\nCPU > 85% pendant 10min]
-        B8[HostDiskAlmostFull\nDisque > 85%]
-    end
-```
-
-### Timing des alertes pour la démo
-
-```mermaid
-sequenceDiagram
-    Note over PR3: docker stop healthai_fastapi
-    PR3->>PR3: Scrape interval 15s → détecte probe_success=0
-    Note over PR3: for=0s → FIRING immédiat
-    PR3->>AM4: Alerte critique
-    Note over AM4: group_wait=0s pour critical
-    AM4->>DC4: Message Discord
-    Note over DC4: ⏱️ Total : ~15-20 secondes
-```
-
----
-
-## Dashboard Grafana — ce qui est affiché
-
-```mermaid
-graph TD
-    subgraph ROW1["🌐 Section 1 — État des services (7 panneaux stat)"]
-        P1[Laravel API\nprobe_success HTTP /up]
-        P2[FastAPI IA\nprobe_success HTTP /]
-        P3[Ollama LLM\nprobe_success HTTP /]
-        P4[PostgreSQL\npg_up]
-        P5[MongoDB\nmongodb_up]
-        P6[Frontend React\nprobe_success host:5001]
-        P7[Targets UP / 9\ncount of up==1\n= 4 sondes + 5 exporters]
-    end
-
-    subgraph ROW2["🐳 Section 2 — Ressources système"]
-        P8[CPU global\ncAdvisor id=/]
-        P9[RAM globale\ncAdvisor id=/]
-        P10[Réseau global\ncAdvisor id=/]
-        note1["⚠️ WSL2 : cAdvisor ne voit pas\nles conteneurs individuellement\n— métriques globales uniquement"]
-    end
-
-    subgraph ROW3["🗄️ Section 3 — Bases de données"]
-        P11[PgSQL connexions stat]
-        P12[PgSQL commits/rollbacks/s]
-        P13[MongoDB connexions stat]
-        P14[MongoDB ops/s]
-    end
-
-    subgraph ROW4["💻 Section 4 — Système hôte"]
-        P15[CPU % jauge]
-        P16[RAM % jauge]
-        P17[Disque % jauge]
-        P18[CPU historique]
-        P19[RAM historique]
-    end
-```
-
-> **Limitation WSL2** : cAdvisor tourne sur WSL2 où le cgroup driver ne permet pas d'isoler les métriques
-> par conteneur. On voit les métriques de la machine entière (`id="/"`) — c'est normal, pas un bug.
+| Alerte | Seuil | Délai | Répétition |
+|---|---|---|---|
+| Service DOWN | `probe_success < 1` | for=0s | toutes les heures |
+| Service LENT | `probe_duration > 2s` | for=2min | toutes les 4h |
+| PostgreSQL DOWN | `pg_up = 0` | for=30s | toutes les heures |
+| MongoDB DOWN | `mongodb_up = 0` | for=30s | toutes les heures |
+| PostgreSQL connexions | `pg_stat_activity_count > 80` | for=5min | toutes les 4h |
+| RAM hôte > 90% | node memory | for=5min | toutes les heures |
+| Disque hôte > 85% | node disk | for=5min | toutes les 4h |
 
 ---
 
 ## Démo pour la présentation
+
+### Déclencher une alerte (~15 secondes avant Discord)
+
+```bash
+# Stopper un service pour déclencher l'alerte
+docker stop healthai_fastapi
+
+# Observer Prometheus en live
+watch -n 2 'curl -s http://localhost:9090/api/v1/alerts | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+alerts=d[\"data\"][\"alerts\"]
+print(\"Alertes actives:\", len(alerts))
+for a in alerts: print(\" \", a[\"state\"].upper(), a[\"labels\"][\"alertname\"])
+"'
+
+# Résoudre l'alerte
+docker start healthai_fastapi
+```
 
 ### Timing complet
 
 | T+ | Événement |
 |---|---|
 | 0s | `docker stop healthai_fastapi` |
-| ~15s | Prometheus détecte `probe_success=0` |
-| ~15s | Alerte FIRING (for=0s) |
-| ~15s | Message Discord 🔴 |
+| ~15–30s | Grafana évalue la règle → FIRING |
+| ~30s | Message Discord 🔴 Service DOWN |
 | +60s | `docker start healthai_fastapi` |
-| ~75s | Alerte RESOLVED |
-| ~75s | Message Discord ✅ |
+| ~75–90s | Message Discord ✅ Résolu |
 
-### Commandes prêtes
+---
 
-```bash
-# Déclenche l'alerte (~15s avant Discord)
-docker stop healthai_fastapi
+## Stack Monitoring — les conteneurs
 
-# Surveille Prometheus en live (terminal séparé)
-watch -n 2 'curl -s http://localhost:9090/api/v1/alerts | python3 -c "
-import sys,json
-d=json.load(sys.stdin)
-alerts=d[\"data\"][\"alerts\"]
-print(\"Alertes actives:\", len(alerts))
-for a in alerts: print(\" \", a[\"state\"].upper(), a[\"labels\"][\"alertname\"], a[\"labels\"].get(\"instance\",\"\"))
-"'
+| Conteneur | Port | Rôle |
+|---|---|---|
+| `prometheus` | :9090 | Collecte et stocke les métriques infra (rétention 30j) |
+| `node-exporter` | :9100 | CPU, RAM, disque, load du serveur hôte |
+| `cadvisor` | :8080 | Ressources Docker globales *(WSL2 : métriques globales uniquement)* |
+| `postgres-exporter` | :9187 | Connexions actives, transactions, taille BDD |
+| `mongodb-exporter` | :9216 | Connexions, opérations CRUD/s, état replica set |
+| `blackbox-exporter` | :9115 | Sondes HTTP GET sur chaque service (up/down + latence) |
 
-# Résoud l'alerte (~15s avant Discord ✅)
-docker start healthai_fastapi
+> **Limitation WSL2** : cAdvisor ne peut pas isoler les métriques par conteneur sur WSL2 (cgroup driver limité).
+> Les panels CPU/RAM Docker affichent les métriques de la machine entière (`id="/"`) — comportement normal.
+
+---
+
+## Structure des fichiers
+
+```
+Health-IA-Workspace/
+├── Monitoring/
+│   ├── docker-compose.yml          ← 6 conteneurs monitoring (Prometheus + exporters)
+│   ├── .env                        ← DISCORD_WEBHOOK_URL + credentials BDD
+│   ├── prometheus/
+│   │   └── prometheus.yml          ← config scrape (quoi collecter et où)
+│   └── alertmanager/
+│       └── alertmanager.yml        ← config alertmanager (non utilisé pour Grafana alerting)
+│
+├── Grafana/
+│   ├── provisioning/
+│   │   ├── datasources/
+│   │   │   ├── prometheus.yml      ← auto-connecte Grafana à Prometheus (uid: prometheus-healthai)
+│   │   │   └── postgresql.yml      ← auto-connecte Grafana à PostgreSQL (uid: fficjnp24r8jka)
+│   │   ├── dashboards/
+│   │   │   └── dashboards.yml      ← déclare les 2 dossiers : HealthAI Monitoring + HealthAI Data
+│   │   └── alerting/
+│   │       ├── rules.yml           ← 7 règles d'alerte Grafana (avec notification_settings)
+│   │       ├── contactpoints.yml   ← contact point Discord natif Grafana
+│   │       └── policies.yml        ← politique de routage globale
+│   ├── monitoring-dashboards/
+│   │   └── healthai_monitoring.json ← dashboard infra Prometheus
+│   └── data-dashboards/
+│       ├── usersGrafana.json        ← utilisateurs, rôles, inscriptions
+│       ├── foodsGrafana.json        ← aliments, macros, consommations
+│       ├── exercisesGrafana.json    ← exercices, pratiques, difficulté
+│       ├── healthMetricsGrafana.json ← IMC, poids, BPM, activité
+│       └── appGrafana.json          ← vue synthèse application globale
+│
+└── ETL/
+    └── docker-compose.yml           ← Grafana (monte les provisioning + data-dashboards)
 ```
 
 ---
@@ -346,10 +349,8 @@ docker start healthai_fastapi
 
 | Fichier | Ce qui a changé | Pourquoi |
 |---|---|---|
-| [ETL/docker-compose.yml](../ETL/docker-compose.yml) | Grafana : volumes provisioning, env alerting, réseau sail, `MIN_REFRESH_INTERVAL=5s` | Auto-charger datasources + dashboards, permettre refresh 5s |
-| [start.sh](../start.sh) | Étape 13/14 : lance `Monitoring/docker-compose.yml` | Démarrage automatique du stack monitoring |
-| [Grafana/provisioning/datasources/postgresql.yml](../Grafana/provisioning/datasources/postgresql.yml) | Datasource PostgreSQL avec UID `fficjnp24r8jka` | Correspond à l'UID codé dans les 4 dashboards data existants |
-| [Monitoring/prometheus/prometheus.yml](prometheus/prometheus.yml) | Frontend sondé via `host.docker.internal:5001` au lieu de `healthai_frontend:5173` | Frontend sur réseau `frontend_default` inaccessible depuis le réseau `sail` |
-| [Monitoring/prometheus/rules/healthai_alerts.yml](prometheus/rules/healthai_alerts.yml) | `ServiceDown` : `for: 0s` (au lieu de 2m) | Alerte immédiate pour la démo |
-| [Monitoring/alertmanager/alertmanager.yml](alertmanager/alertmanager.yml) | `group_wait: 0s` pour critical | Envoi Discord sans délai |
-| [Grafana/monitoring-dashboards/healthai_monitoring.json](../Grafana/monitoring-dashboards/healthai_monitoring.json) | Ajout panneau Frontend, w=3 pour 7 panneaux, refresh=5s, fix queries WSL2 | Frontend visible, rafraîchissement rapide |
+| `ETL/docker-compose.yml` | Volume `data-dashboards`, `env_file` pour Discord, `alertingSimplifiedRouting` | Auto-charger datasources + alerting Discord natif |
+| `Grafana/provisioning/alerting/rules.yml` | `notification_settings` sur chaque règle | Obligatoire avec `alertingSimplifiedRouting=true` |
+| `Grafana/provisioning/alerting/contactpoints.yml` | URL Discord hardcodée (pas de variable d'env) | Grafana 13.0.2 n'interpole pas les variables dans ce fichier |
+| `Grafana/data-dashboards/` | Nouveau dossier avec les 5 JSON dashboards data | Séparation des providers pour éviter le conflit "Cannot change resource manager" |
+| `Monitoring/prometheus/prometheus.yml` | Frontend sondé via `host.docker.internal:5001` | Frontend sur réseau `frontend_default` inaccessible depuis `sail` |
